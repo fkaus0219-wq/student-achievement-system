@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>해남 어린이 시민단체 모둠 구성기</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & React DOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+    <!-- ✅ Firebase SDK (compat 버전: Babel/UMD 환경과 바로 호환) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f0fdf4;
+        }
+        .font-title {
+            font-family: 'Gowun Dodum', sans-serif;
+        }
+        .custom-shadow {
+            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.1), 0 8px 10px -6px rgba(16, 185, 129, 0.1);
+        }
+    </style>
+
+    <!-- ✅ Firebase 초기화 (전역에 db 노출) -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAGErlS-s-3syvMMiPAULnKqE6S8apAr18",
+            authDomain: "studnet-achievement-system.firebaseapp.com",
+            projectId: "studnet-achievement-system",
+            storageBucket: "studnet-achievement-system.firebasestorage.app",
+            messagingSenderId: "724057316075",
+            appId: "1:724057316075:web:e9052e34eb0d9ce1bcbcae"
+        };
+        firebase.initializeApp(firebaseConfig);
+        window.db = firebase.firestore();
+        window.fb = firebase; // 트랜잭션/배치 등 사용 편의
+    </script>
+</head>
+<body class="text-gray-800 antialiased min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // ✅ Firestore 참조
+        const db = window.db;
+        const SUBMISSIONS_COL = 'submissions';
+        const SETTINGS_DOC = db.collection('settings').doc('teacher');
+
+        // 해남군 지역 문제 주제 목록
+        const TOPICS = [
+            { id: 'demographics', name: '인구 감소 및 아동 수 감소', icon: 'fa-users-slash', color: 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100', badge: 'bg-rose-500' },
+            { id: 'traffic', name: '교통 안전 (스쿨존·안전길)', icon: 'fa-bus-school', color: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100', badge: 'bg-amber-500' },
+            { id: 'environment', name: '생활 환경 (쓰레기·공원·깨끗한 거리)', icon: 'fa-recycle', color: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100', badge: 'bg-emerald-500' },
+            { id: 'community', name: '이웃과 마을 (어르신·놀이공간)', icon: 'fa-hand-holding-heart', color: 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100', badge: 'bg-sky-500' },
+            { id: 'economy', name: '지역 축제 및 경제 (특산물·시장)', icon: 'fa-store', color: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100', badge: 'bg-purple-500' },
+            { id: 'healthcare', name: '보건 의료 및 안전 (병원·응급)', icon: 'fa-hospital-user', color: 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100', badge: 'bg-teal-500' }
+        ];
+
+        // 시민단체 역할 목록
+        const ROLES = [
+            { id: 'design', name: '디자인 제작', desc: '포스터, 피켓, 홍보물 그림 그리기 및 꾸미기', icon: 'fa-palette', color: 'text-pink-600 bg-pink-100 border-pink-300' },
+            { id: 'writing', name: '글쓰기 기획', desc: '성명서, 건의문, 신문 기사 내용 작성하기', icon: 'fa-pen-nib', color: 'text-indigo-600 bg-indigo-100 border-indigo-300' },
+            { id: 'research', name: '자료 조사', desc: '인터넷 검색, 사진 촬영, 알맞은 인터뷰 조사', icon: 'fa-magnifying-glass', color: 'text-cyan-600 bg-cyan-100 border-cyan-300' },
+            { id: 'presentation', name: '발표 담당', desc: '우리 모둠의 의견을 학급 친구들 앞에서 발표하기', icon: 'fa-bullhorn', color: 'text-amber-600 bg-amber-100 border-amber-300' },
+            { id: 'coordination', name: '조율·정리 담당', desc: '활동 순서 정리, 시간 확인, 모둠원 잘 다독이기', icon: 'fa-clipboard-check', color: 'text-emerald-600 bg-emerald-100 border-emerald-300' }
+        ];
+
+        // 샘플 학생 데이터 (시연용)
+        const SAMPLE_STUDENTS = [
+            { name: '김해남', topic: 'traffic', detail: '학교 앞 어린이 보호구역에 방지턱과 신호등이 더 필요해요.', role: 'presentation', timestamp: '10:01' },
+            { name: '이땅끝', topic: 'traffic', detail: '학원 버스 내리는 곳이 위험해서 안내 표지판을 만들고 싶어요.', role: 'design', timestamp: '10:02' },
+            { name: '박고구마', topic: 'traffic', detail: '자전거 타는 친구들이 안전모를 쓸 수 있게 캠페인을 해요.', role: 'writing', timestamp: '10:03' },
+            { name: '최공룡', topic: 'traffic', detail: '스쿨존 위반 차량 신고 및 단속 건의문을 쓰고 싶어요.', role: 'research', timestamp: '10:05' },
+            { name: '정우수', topic: 'environment', detail: '마을 천변에 버려진 플라스틱 쓰레기를 줍고 안내판을 세워요.', role: 'design', timestamp: '10:06' },
+            { name: '강바다', topic: 'environment', detail: '분리수거 방법을 쉬운 그림으로 만들어 홍보하고 싶어요.', role: 'coordination', timestamp: '10:08' },
+            { name: '윤하늘', topic: 'environment', detail: '공원에 꽃밭을 가꾸고 환경 지킴이 지도 만들기.', role: 'research', timestamp: '10:09' },
+            { name: '장들판', topic: 'environment', detail: '일회용품 줄이기 운동 가이드북 제작하기.', role: 'writing', timestamp: '10:10' },
+            { name: '임태양', topic: 'demographics', detail: '해남에 아이들이 놀 수 있는 실내 놀이터 건의하기.', role: 'presentation', timestamp: '10:12' },
+            { name: '한소송', topic: 'demographics', detail: '젊은 부모님들이 살기 좋은 우리 동네 자랑 카드 뉴스 만들기.', role: 'design', timestamp: '10:13' },
+            { name: '오세찬', topic: 'demographics', detail: '다른 지역 친구들에게 해남을 홍보하는 영상 기획서 쓰기.', role: 'writing', timestamp: '10:15' },
+            { name: '서유리', topic: 'demographics', detail: '아이들이 필요한 시설 설문조사 진행하기.', role: 'research', timestamp: '10:16' },
+            { name: '신다정', topic: 'community', detail: '마을 경로당 어르신들께 옛날 이야기 듣고 자서전 써드리기.', role: 'writing', timestamp: '10:18' },
+            { name: '권민준', topic: 'community', detail: '어르신들이 길 건너기 편하도록 쉼터 의자 설치 건의.', role: 'coordination', timestamp: '10:19' },
+            { name: '황지아', topic: 'community', detail: '마을 축제에서 어르신과 함께하는 놀이 부스 운영.', role: 'presentation', timestamp: '10:20' },
+            { name: '송현우', topic: 'economy', detail: '해남 특산물 고구마와 배추를 홍보하는 캐릭터 그리기.', role: 'design', timestamp: '10:22' },
+            { name: '류은지', topic: 'economy', detail: '전통시장에 젊은 손님이 많이 오도록 지도 만들기.', role: 'research', timestamp: '10:23' },
+            { name: '문성진', topic: 'economy', detail: '해남 어린이 특산물 홍보 대사 포스터 제작.', role: 'presentation', timestamp: '10:25' },
+            { name: '배서연', topic: 'healthcare', detail: '응급처치 방법을 알리는 가이드 카드 만들기.', role: 'design', timestamp: '10:27' },
+            { name: '조원준', topic: 'healthcare', detail: '주말에도 이용할 수 있는 병원 약국 정보 지도를 꾸미기.', role: 'coordination', timestamp: '10:28' }
+        ];
+
+        function App() {
+            const [mode, setMode] = useState('student');
+
+            // 학생 입력 Form State
+            const [studentName, setStudentName] = useState('');
+            const [selectedTopic, setSelectedTopic] = useState('');
+            const [topicDetail, setTopicDetail] = useState('');
+            const [selectedRole, setSelectedRole] = useState('');
+            const [isSubmitted, setIsSubmitted] = useState(false);
+
+            // 교사 관리 State
+            const [submissions, setSubmissions] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [teacherPassword, setTeacherPassword] = useState('');
+            const [storedPassword, setStoredPassword] = useState('1234');
+            const [isTeacherAuthenticated, setIsTeacherAuthenticated] = useState(false);
+            const [groupSize, setGroupSize] = useState(4);
+            const [generatedGroups, setGeneratedGroups] = useState(null);
+            const [teacherTab, setTeacherTab] = useState('overview');
+            const [showPwModal, setShowPwModal] = useState(false);
+            const [newPwInput, setNewPwInput] = useState('');
+            const [migrationStatus, setMigrationStatus] = useState(''); // 마이그레이션 상태 메시지
+
+            // ✅ Firestore 실시간 구독 - submissions
+            useEffect(() => {
+                const unsub = db.collection(SUBMISSIONS_COL)
+                    .orderBy('createdAt', 'asc')
+                    .onSnapshot(
+                        (snap) => {
+                            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                            setSubmissions(list);
+                            setLoading(false);
+                        },
+                        (err) => {
+                            console.error('Firestore 구독 오류:', err);
+                            setLoading(false);
+                        }
+                    );
+                return () => unsub();
+            }, []);
+
+            // ✅ Firestore 실시간 구독 - 교사 비밀번호
+            useEffect(() => {
+                const unsub = SETTINGS_DOC.onSnapshot((doc) => {
+                    if (doc.exists && doc.data().password) {
+                        setStoredPassword(doc.data().password);
+                    }
+                });
+                return () => unsub();
+            }, []);
+
+            // 비밀번호 변경 저장 → Firestore
+            const handleChangePassword = async (e) => {
+                e.preventDefault();
+                if (!newPwInput.trim()) {
+                    alert('새 비밀번호를 입력해주세요.');
+                    return;
+                }
+                try {
+                    await SETTINGS_DOC.set({ password: newPwInput.trim() }, { merge: true });
+                    setNewPwInput('');
+                    setShowPwModal(false);
+                    alert('교사 비밀번호가 성공적으로 변경되었습니다!');
+                } catch (err) {
+                    console.error(err);
+                    alert('비밀번호 저장 중 오류가 발생했습니다: ' + err.message);
+                }
+            };
+
+            // 학생 설문 제출 → Firestore addDoc
+            const handleSubmitStudent = async (e) => {
+                e.preventDefault();
+                if (!studentName.trim() || !selectedTopic || !topicDetail.trim() || !selectedRole) {
+                    alert('모든 질문 항목에 답변을 작성해주세요!');
+                    return;
+                }
+                const newEntry = {
+                    name: studentName.trim(),
+                    topic: selectedTopic,
+                    detail: topicDetail.trim(),
+                    role: selectedRole,
+                    timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                try {
+                    await db.collection(SUBMISSIONS_COL).add(newEntry);
+                    setIsSubmitted(true);
+                } catch (err) {
+                    console.error(err);
+                    alert('제출 중 오류가 발생했습니다: ' + err.message);
+                }
+            };
+
+            const handleResetForm = () => {
+                setStudentName('');
+                setSelectedTopic('');
+                setTopicDetail('');
+                setSelectedRole('');
+                setIsSubmitted(false);
+            };
+
+            const handleTeacherAuth = (e) => {
+                e.preventDefault();
+                if (teacherPassword === storedPassword) {
+                    setIsTeacherAuthenticated(true);
+                } else {
+                    alert('비밀번호가 올바르지 않습니다.');
+                }
+            };
+
+            // 샘플 데이터 → Firestore 배치 추가
+            const handleLoadSampleData = async () => {
+                if (!confirm('시연용 학생 20명의 응답 데이터를 로드하시겠습니까? (기존 응답에 추가됩니다)')) return;
+                try {
+                    const batch = db.batch();
+                    SAMPLE_STUDENTS.forEach(s => {
+                        const ref = db.collection(SUBMISSIONS_COL).doc();
+                        batch.set(ref, {
+                            ...s,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    });
+                    await batch.commit();
+                } catch (err) {
+                    console.error(err);
+                    alert('샘플 데이터 추가 중 오류: ' + err.message);
+                }
+            };
+
+            // 전체 삭제 → Firestore 배치 삭제
+            const handleClearData = async () => {
+                if (!confirm('정말로 모든 학생 응답 데이터를 초기화하시겠습니까?')) return;
+                try {
+                    const snap = await db.collection(SUBMISSIONS_COL).get();
+                    const batch = db.batch();
+                    snap.docs.forEach(d => batch.delete(d.ref));
+                    await batch.commit();
+                    setGeneratedGroups(null);
+                } catch (err) {
+                    console.error(err);
+                    alert('삭제 중 오류: ' + err.message);
+                }
+            };
+
+            // ✅ localStorage → Firestore 마이그레이션
+            const handleMigrateFromLocalStorage = async () => {
+                try {
+                    setMigrationStatus('🔎 localStorage 데이터 확인 중...');
+                    const rawSubs = localStorage.getItem('haenam_submissions');
+                    const rawPw = localStorage.getItem('haenam_teacher_password');
+
+                    const localSubs = rawSubs ? JSON.parse(rawSubs) : [];
+                    const localPw = rawPw || null;
+
+                    if (localSubs.length === 0 && !localPw) {
+                        setMigrationStatus('');
+                        alert('이전할 localStorage 데이터가 없습니다.');
+                        return;
+                    }
+
+                    const ok = confirm(
+                        `localStorage에서 다음 데이터를 Firestore로 이전합니다.\n\n` +
+                        `• 학생 응답: ${localSubs.length}건\n` +
+                        `• 교사 비밀번호: ${localPw ? '있음' : '없음'}\n\n` +
+                        `계속 진행할까요? (기존 Firestore 데이터는 그대로 유지되며, 이 응답들이 추가됩니다)`
+                    );
+                    if (!ok) {
+                        setMigrationStatus('');
+                        return;
+                    }
+
+                    // 응답 데이터 배치 업로드 (500건 단위)
+                    if (localSubs.length > 0) {
+                        setMigrationStatus(`⏫ ${localSubs.length}건의 응답 업로드 중...`);
+                        const CHUNK = 400;
+                        for (let i = 0; i < localSubs.length; i += CHUNK) {
+                            const chunk = localSubs.slice(i, i + CHUNK);
+                            const batch = db.batch();
+                            chunk.forEach(sub => {
+                                const ref = db.collection(SUBMISSIONS_COL).doc();
+                                const { id, ...rest } = sub; // 기존 id는 Firestore가 새로 발급
+                                batch.set(ref, {
+                                    ...rest,
+                                    migratedFromLocal: true,
+                                    legacyId: id || null,
+                                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                                });
+                            });
+                            await batch.commit();
+                        }
+                    }
+
+                    // 비밀번호 이전
+                    if (localPw) {
+                        setMigrationStatus('🔐 교사 비밀번호 저장 중...');
+                        await SETTINGS_DOC.set({ password: localPw }, { merge: true });
+                    }
+
+                    // 성공 후 localStorage 정리 여부 묻기
+                    const clearLocal = confirm(
+                        '✅ 이전이 완료되었습니다!\n\n' +
+                        '중복 저장을 막기 위해 localStorage에 남아있는 데이터를 삭제할까요?\n' +
+                        '(권장: 예)'
+                    );
+                    if (clearLocal) {
+                        localStorage.removeItem('haenam_submissions');
+                        localStorage.removeItem('haenam_teacher_password');
+                    }
+                    setMigrationStatus('✅ 마이그레이션 완료!');
+                    setTimeout(() => setMigrationStatus(''), 4000);
+                } catch (err) {
+                    console.error(err);
+                    setMigrationStatus('');
+                    alert('마이그레이션 중 오류가 발생했습니다: ' + err.message);
+                }
+            };
+
+            // 지능형 모둠 구성 알고리즘 (기존 로직 유지)
+            const generateSmartGroups = () => {
+                if (submissions.length === 0) {
+                    alert('제출된 학생 응답이 없어 모둠을 구성할 수 없습니다.');
+                    return;
+                }
+                const topicBuckets = {};
+                TOPICS.forEach(t => topicBuckets[t.id] = []);
+                submissions.forEach(sub => {
+                    if (topicBuckets[sub.topic]) topicBuckets[sub.topic].push(sub);
+                });
+
+                const allGroups = [];
+                let groupCounter = 1;
+
+                Object.keys(topicBuckets).forEach(topicId => {
+                    const studentsInTopic = [...topicBuckets[topicId]];
+                    if (studentsInTopic.length === 0) return;
+                    const topicObj = TOPICS.find(t => t.id === topicId);
+
+                    while (studentsInTopic.length > 0) {
+                        let currentTargetSize = Math.min(groupSize, studentsInTopic.length);
+                        if (studentsInTopic.length > groupSize && studentsInTopic.length < groupSize * 2) {
+                            currentTargetSize = Math.ceil(studentsInTopic.length / 2);
+                        }
+                        const currentGroupMembers = [];
+                        const usedRoles = new Set();
+
+                        for (let i = 0; i < currentTargetSize; i++) {
+                            let bestIndex = studentsInTopic.findIndex(s => !usedRoles.has(s.role));
+                            if (bestIndex === -1) bestIndex = 0;
+                            const selectedStudent = studentsInTopic.splice(bestIndex, 1)[0];
+                            currentGroupMembers.push(selectedStudent);
+                            usedRoles.add(selectedStudent.role);
+                        }
+
+                        const uniqueRoleCount = new Set(currentGroupMembers.map(m => m.role)).size;
+                        const balanceScore = Math.round((uniqueRoleCount / Math.min(5, currentGroupMembers.length)) * 100);
+
+                        allGroups.push({
+                            id: `group_${groupCounter}`,
+                            groupNumber: groupCounter,
+                            topicId: topicId,
+                            topicName: topicObj ? topicObj.name : '지역 문제',
+                            topicColor: topicObj ? topicObj.color : '',
+                            topicBadge: topicObj ? topicObj.badge : 'bg-emerald-500',
+                            members: currentGroupMembers,
+                            balanceScore: balanceScore
+                        });
+                        groupCounter++;
+                    }
+                });
+
+                setGeneratedGroups(allGroups);
+                setTeacherTab('groups');
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col justify-between">
+                    {/* 상단 헤더 */}
+                    <header className="bg-emerald-600 text-white shadow-lg sticky top-0 z-50">
+                        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-y-2">
+                            <div className="flex items-center space-x-3">
+                                <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+                                    <i className="fa-solid fa-people-roof text-2xl text-yellow-300"></i>
+                                </div>
+                                <div>
+                                    <h1 className="text-xl md:text-2xl font-bold font-title tracking-wide">
+                                        해남 어린이 시민단체 모둠 구성
+                                    </h1>
+                                    <p className="text-xs text-emerald-100 hidden sm:block">
+                                        <i className="fa-solid fa-cloud mr-1"></i>
+                                        Firestore 실시간 연동 - 어디서든 함께 참여해요!
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center bg-emerald-700/60 p-1 rounded-xl border border-emerald-500/30 text-sm">
+                                <button
+                                    onClick={() => setMode('student')}
+                                    className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-1.5 ${
+                                        mode === 'student' ? 'bg-white text-emerald-800 shadow' : 'text-emerald-100 hover:text-white'
+                                    }`}
+                                >
+                                    <i className="fa-solid fa-pen-to-square"></i>
+                                    <span>학생 설문</span>
+                                </button>
+                                <button
+                                    onClick={() => setMode('teacher')}
+                                    className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-1.5 ${
+                                        mode === 'teacher' ? 'bg-white text-emerald-800 shadow' : 'text-emerald-100 hover:text-white'
+                                    }`}
+                                >
+                                    <i className="fa-solid fa-user-check"></i>
+                                    <span>교사 전용 대시보드</span>
+                                    {submissions.length > 0 && (
+                                        <span className="ml-1 px-1.5 py-0.5 text-xs bg-amber-400 text-amber-950 font-bold rounded-full">
+                                            {submissions.length}
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
+                        {mode === 'student' ? (
+                            <StudentView
+                                studentName={studentName} setStudentName={setStudentName}
+                                selectedTopic={selectedTopic} setSelectedTopic={setSelectedTopic}
+                                topicDetail={topicDetail} setTopicDetail={setTopicDetail}
+                                selectedRole={selectedRole} setSelectedRole={setSelectedRole}
+                                isSubmitted={isSubmitted}
+                                handleSubmitStudent={handleSubmitStudent}
+                                handleResetForm={handleResetForm}
+                            />
+                        ) : (
+                            <TeacherView
+                                loading={loading}
+                                isTeacherAuthenticated={isTeacherAuthenticated}
+                                teacherPassword={teacherPassword} setTeacherPassword={setTeacherPassword}
+                                handleTeacherAuth={handleTeacherAuth}
+                                submissions={submissions}
+                                handleLoadSampleData={handleLoadSampleData}
+                                handleClearData={handleClearData}
+                                handleMigrateFromLocalStorage={handleMigrateFromLocalStorage}
+                                migrationStatus={migrationStatus}
+                                groupSize={groupSize} setGroupSize={setGroupSize}
+                                generateSmartGroups={generateSmartGroups}
+                                generatedGroups={generatedGroups} setGeneratedGroups={setGeneratedGroups}
+                                teacherTab={teacherTab} setTeacherTab={setTeacherTab}
+                                setShowPwModal={setShowPwModal} showPwModal={showPwModal}
+                                newPwInput={newPwInput} setNewPwInput={setNewPwInput}
+                                handleChangePassword={handleChangePassword}
+                            />
+                        )}
+                    </main>
+
+                    <footer className="bg-slate-800 text-slate-400 py-6 text-center text-xs mt-12 border-t border-slate-700">
+                        <div className="max-w-6xl mx-auto px-4">
+                            <p className="font-medium text-slate-300 mb-1">초등학교 4학년 사회 교과 연계 - 해남군 지역문제 해결 시민단체 모둠 세팅기</p>
+                            <p>학생 제출 데이터는 Firebase Firestore에 저장되며, 교사 계정에서만 통합 확인할 수 있습니다.</p>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        function StudentView({
+            studentName, setStudentName,
+            selectedTopic, setSelectedTopic,
+            topicDetail, setTopicDetail,
+            selectedRole, setSelectedRole,
+            isSubmitted, handleSubmitStudent, handleResetForm
+        }) {
+            if (isSubmitted) {
+                return (
+                    <div className="max-w-xl mx-auto bg-white rounded-3xl p-8 text-center custom-shadow border border-emerald-100">
+                        <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-inner">
+                            <i className="fa-solid fa-paper-plane"></i>
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-800 font-title mb-2">설문 제출 완료! 🎉</h2>
+                        <p className="text-gray-600 mb-6 leading-relaxed">
+                            <span className="font-bold text-emerald-700">{studentName}</span> 학생의 생각과 강점이 선생님께 안전하게 제출되었습니다.<br/>
+                            친구들의 의견과 잘 어우러지도록 멋진 시민단체 모둠을 만들어 줄게요!
+                        </p>
+                        <div className="bg-emerald-50 rounded-2xl p-4 text-left mb-6 text-sm space-y-2 border border-emerald-100">
+                            <div className="flex justify-between border-b border-emerald-200/60 pb-2">
+                                <span className="text-gray-500">선택한 지역문제:</span>
+                                <span className="font-bold text-emerald-900">{TOPICS.find(t => t.id === selectedTopic)?.name}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-500">시민단체 내 역할:</span>
+                                <span className="font-bold text-emerald-900">{ROLES.find(r => r.id === selectedRole)?.name}</span>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleResetForm}
+                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition shadow hover:shadow-lg flex items-center justify-center space-x-2"
+                        >
+                            <i className="fa-solid fa-rotate-left"></i>
+                            <span>다시 작성하거나 다른 학생 제출하기</span>
+                        </button>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="max-w-3xl mx-auto bg-white rounded-3xl p-6 md:p-10 custom-shadow border border-emerald-100">
+                    <div className="border-b border-gray-100 pb-5 mb-8">
+                        <div className="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 font-bold text-xs rounded-full mb-2">
+                            초등 4학년 사회 Ⅱ. 우리 지역의 환경과 삶
+                        </div>
+                        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 font-title">
+                            땅끝 해남 어린이 시민단체 희망 설문
+                        </h2>
+                        <p className="text-gray-600 text-sm mt-1">
+                            우리가 살고 있는 해남군의 문제를 해결하기 위해 어떤 시민단체에 참여하고 싶은지 알려주세요!
+                        </p>
+                    </div>
+
+                    <form onSubmit={handleSubmitStudent} className="space-y-8">
+                        {/* 1. 이름 */}
+                        <div className="bg-gray-50/80 p-5 rounded-2xl border border-gray-200/80">
+                            <label className="text-base font-bold text-gray-800 mb-2 flex items-center">
+                                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center mr-2">1</span>
+                                이름을 적어주세요.
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="이름 입력 (예: 김해남)"
+                                value={studentName}
+                                onChange={(e) => setStudentName(e.target.value)}
+                                required
+                                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm font-bold"
+                            />
+                        </div>
+
+                        {/* 2. 주제 */}
+                        <div>
+                            <label className="text-base font-bold text-gray-800 mb-3 flex items-center">
+                                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center mr-2">2</span>
+                                내가 가장 관심 있는 해남군 지역문제 주제를 하나 선택하세요.
+                            </label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {TOPICS.map((t) => {
+                                    const isSelected = selectedTopic === t.id;
+                                    return (
+                                        <div
+                                            key={t.id}
+                                            onClick={() => setSelectedTopic(t.id)}
+                                            className={`cursor-pointer p-4 rounded-2xl border-2 transition-all flex items-start space-x-3.5 ${
+                                                isSelected ? 'border-emerald-600 bg-emerald-50 shadow-md ring-2 ring-emerald-200' : 'border-gray-200 bg-white hover:border-emerald-300 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <div className={`p-3 rounded-xl text-lg ${t.color}`}>
+                                                <i className={`fa-solid ${t.icon}`}></i>
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="font-bold text-gray-800 text-sm">{t.name}</h3>
+                                                    {isSelected && <i className="fa-solid fa-circle-check text-emerald-600 text-lg"></i>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* 3. 상세 */}
+                        <div>
+                            <label className="text-base font-bold text-gray-800 mb-2 flex items-center">
+                                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center mr-2">3</span>
+                                내가 선택한 주제에서 더 깊이 다뤄보고 싶은 구체적인 지역문제는 무엇인가요?
+                            </label>
+                            <textarea
+                                rows="3"
+                                placeholder="예: 우리 학교 앞 도로에 횡단보도가 어두워서 밤에 위험해요 / 해남의 고구마 특산물을 더 잘 알리는 캐릭터를 만들고 싶어요 등"
+                                value={topicDetail}
+                                onChange={(e) => setTopicDetail(e.target.value)}
+                                required
+                                className="w-full p-4 rounded-2xl border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm leading-relaxed"
+                            ></textarea>
+                        </div>
+
+                        {/* 4. 역할 */}
+                        <div>
+                            <label className="text-base font-bold text-gray-800 mb-2 flex items-center">
+                                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center mr-2">4</span>
+                                시민단체 활동에서 내가 어떤 일을 할 때 가장 신나고 잘할 수 있나요?
+                            </label>
+                            <p className="text-xs text-gray-500 mb-3 pl-8">* 나의 장점을 잘 발휘할 수 있는 역할을 1가지 선택해주세요.</p>
+                            <div className="space-y-2.5">
+                                {ROLES.map((role) => {
+                                    const isSelected = selectedRole === role.id;
+                                    return (
+                                        <div
+                                            key={role.id}
+                                            onClick={() => setSelectedRole(role.id)}
+                                            className={`cursor-pointer p-3.5 rounded-2xl border-2 transition-all flex items-center justify-between ${
+                                                isSelected ? 'border-emerald-600 bg-emerald-50 shadow-sm ring-2 ring-emerald-200' : 'border-gray-200 hover:border-emerald-200 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <div className="flex items-center space-x-3">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${role.color}`}>
+                                                    <i className={`fa-solid ${role.icon} text-base`}></i>
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-gray-800 text-sm">{role.name}</h4>
+                                                    <p className="text-xs text-gray-500">{role.desc}</p>
+                                                </div>
+                                            </div>
+                                            <input type="radio" name="roleGroup" checked={isSelected} onChange={() => {}} className="w-4 h-4 text-emerald-600 focus:ring-emerald-500" />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* 제출 */}
+                        <button
+                            type="submit"
+                            className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition shadow-md hover:shadow-lg flex items-center justify-center space-x-2 text-base"
+                        >
+                            <i className="fa-solid fa-cloud-arrow-up"></i>
+                            <span>내 의견 선생님께 제출하기</span>
+                        </button>
+                    </form>
+                </div>
+            );
+        }
+
+        function TeacherView(props) {
+            const {
+                loading,
+                isTeacherAuthenticated, teacherPassword, setTeacherPassword, handleTeacherAuth,
+                submissions, handleLoadSampleData, handleClearData,
+                handleMigrateFromLocalStorage, migrationStatus,
+                groupSize, setGroupSize, generateSmartGroups,
+                generatedGroups, teacherTab, setTeacherTab,
+                setShowPwModal, showPwModal, newPwInput, setNewPwInput, handleChangePassword
+            } = props;
+
+            if (!isTeacherAuthenticated) {
+                return (
+                    <div className="max-w-md mx-auto bg-white rounded-3xl p-8 custom-shadow border border-emerald-100">
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl">
+                                <i className="fa-solid fa-lock"></i>
+                            </div>
+                            <h2 className="text-xl font-bold font-title">교사 전용 대시보드</h2>
+                            <p className="text-sm text-gray-500 mt-1">접근하려면 비밀번호를 입력하세요. (기본값: 1234)</p>
+                        </div>
+                        <form onSubmit={handleTeacherAuth} className="space-y-3">
+                            <input
+                                type="password"
+                                value={teacherPassword}
+                                onChange={(e) => setTeacherPassword(e.target.value)}
+                                placeholder="교사 비밀번호"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                            />
+                            <button type="submit" className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl">
+                                입장하기
+                            </button>
+                        </form>
+                    </div>
+                );
+            }
+
+            // 통계
+            const topicCounts = TOPICS.map(t => ({
+                ...t, count: submissions.filter(s => s.topic === t.id).length
+            }));
+            const roleCounts = ROLES.map(r => ({
+                ...r, count: submissions.filter(s => s.role === r.id).length
+            }));
+
+            return (
+                <div className="space-y-6">
+                    {/* 상단 액션 바 */}
+                    <div className="bg-white rounded-3xl p-5 custom-shadow border border-emerald-100">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-xl font-bold font-title text-gray-800">
+                                    <i className="fa-solid fa-chalkboard-user text-emerald-600 mr-2"></i>
+                                    교사 대시보드
+                                </h2>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                    {loading ? (
+                                        <><i className="fa-solid fa-circle-notch fa-spin mr-1"></i> Firestore에서 데이터 불러오는 중...</>
+                                    ) : (
+                                        <>현재 Firestore에 저장된 응답 <b className="text-emerald-700">{submissions.length}</b>건 (실시간 동기화)</>
+                                    )}
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <button onClick={handleMigrateFromLocalStorage}
+                                    className="px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center space-x-1.5">
+                                    <i className="fa-solid fa-cloud-arrow-up"></i>
+                                    <span>localStorage → Firestore 이전</span>
+                                </button>
+                                <button onClick={handleLoadSampleData}
+                                    className="px-3 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-lg flex items-center space-x-1.5">
+                                    <i className="fa-solid fa-flask"></i>
+                                    <span>시연 데이터 추가</span>
+                                </button>
+                                <button onClick={() => setShowPwModal(true)}
+                                    className="px-3 py-2 text-xs font-bold bg-slate-600 hover:bg-slate-700 text-white rounded-lg flex items-center space-x-1.5">
+                                    <i className="fa-solid fa-key"></i>
+                                    <span>비밀번호 변경</span>
+                                </button>
+                                <button onClick={handleClearData}
+                                    className="px-3 py-2 text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white rounded-lg flex items-center space-x-1.5">
+                                    <i className="fa-solid fa-trash"></i>
+                                    <span>전체 초기화</span>
+                                </button>
+                            </div>
+                        </div>
+                        {migrationStatus && (
+                            <div className="mt-3 px-3 py-2 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-lg text-xs">
+                                {migrationStatus}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 탭 */}
+                    <div className="flex gap-2 border-b border-gray-200">
+                        {[
+                            { id: 'overview', name: '현황', icon: 'fa-chart-pie' },
+                            { id: 'responses', name: '응답 목록', icon: 'fa-list' },
+                            { id: 'groups', name: '모둠 구성', icon: 'fa-users' }
+                        ].map(tab => (
+                            <button key={tab.id}
+                                onClick={() => setTeacherTab(tab.id)}
+                                className={`px-4 py-2 text-sm font-bold rounded-t-lg flex items-center space-x-1.5 ${
+                                    teacherTab === tab.id
+                                        ? 'bg-white text-emerald-700 border-x border-t border-emerald-200'
+                                        : 'text-gray-500 hover:text-emerald-600'
+                                }`}>
+                                <i className={`fa-solid ${tab.icon}`}></i>
+                                <span>{tab.name}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* 현황 */}
+                    {teacherTab === 'overview' && (
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div className="bg-white rounded-2xl p-5 border border-emerald-100 custom-shadow">
+                                <h3 className="font-bold text-sm mb-3 text-gray-700">주제별 신청 현황</h3>
+                                <div className="space-y-2">
+                                    {topicCounts.map(t => (
+                                        <div key={t.id} className="flex items-center">
+                                            <div className="w-32 text-xs text-gray-600 truncate">{t.name}</div>
+                                            <div className="flex-1 bg-gray-100 h-5 rounded-full overflow-hidden mx-2">
+                                                <div className={`${t.badge} h-full`} style={{width: `${submissions.length ? (t.count / submissions.length * 100) : 0}%`}}></div>
+                                            </div>
+                                            <div className="w-8 text-right text-xs font-bold text-gray-700">{t.count}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="bg-white rounded-2xl p-5 border border-emerald-100 custom-shadow">
+                                <h3 className="font-bold text-sm mb-3 text-gray-700">역할별 분포</h3>
+                                <div className="space-y-2">
+                                    {roleCounts.map(r => (
+                                        <div key={r.id} className="flex items-center">
+                                            <div className="w-32 text-xs text-gray-600 flex items-center">
+                                                <i className={`fa-solid ${r.icon} mr-1.5`}></i>{r.name}
+                                            </div>
+                                            <div className="flex-1 bg-gray-100 h-5 rounded-full overflow-hidden mx-2">
+                                                <div className="bg-emerald-500 h-full" style={{width: `${submissions.length ? (r.count / submissions.length * 100) : 0}%`}}></div>
+                                            </div>
+                                            <div className="w-8 text-right text-xs font-bold text-gray-700">{r.count}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 응답 목록 */}
+                    {teacherTab === 'responses' && (
+                        <div className="bg-white rounded-2xl border border-emerald-100 custom-shadow overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-emerald-50 text-emerald-800">
+                                        <tr>
+                                            <th className="p-3 text-left">#</th>
+                                            <th className="p-3 text-left">이름</th>
+                                            <th className="p-3 text-left">주제</th>
+                                            <th className="p-3 text-left">상세</th>
+                                            <th className="p-3 text-left">역할</th>
+                                            <th className="p-3 text-left">시간</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {submissions.length === 0 ? (
+                                            <tr><td colSpan="6" className="p-8 text-center text-gray-400">
+                                                아직 제출된 응답이 없습니다.
+                                            </td></tr>
+                                        ) : submissions.map((s, i) => {
+                                            const topic = TOPICS.find(t => t.id === s.topic);
+                                            const role = ROLES.find(r => r.id === s.role);
+                                            return (
+                                                <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50">
+                                                    <td className="p-3 text-gray-400">{i + 1}</td>
+                                                    <td className="p-3 font-bold">{s.name}</td>
+                                                    <td className="p-3">
+                                                        {topic && <span className={`px-2 py-0.5 rounded-full text-xs font-bold text-white ${topic.badge}`}>{topic.name}</span>}
+                                                    </td>
+                                                    <td className="p-3 max-w-xs text-xs text-gray-600 truncate" title={s.detail}>{s.detail}</td>
+                                                    <td className="p-3 text-xs">{role?.name}</td>
+                                                    <td className="p-3 text-xs text-gray-400">{s.timestamp}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 모둠 구성 */}
+                    {teacherTab === 'groups' && (
+                        <div className="space-y-4">
+                            <div className="bg-white rounded-2xl p-4 border border-emerald-100 custom-shadow flex flex-wrap items-center gap-3">
+                                <label className="text-sm font-bold text-gray-700">모둠당 인원 수</label>
+                                <input type="number" min="2" max="8" value={groupSize}
+                                    onChange={(e) => setGroupSize(Number(e.target.value))}
+                                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                                <button onClick={generateSmartGroups}
+                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-lg flex items-center space-x-1.5">
+                                    <i className="fa-solid fa-wand-magic-sparkles"></i>
+                                    <span>지능형 모둠 자동 구성</span>
+                                </button>
+                            </div>
+
+                            {generatedGroups && (
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    {generatedGroups.map(g => (
+                                        <div key={g.id} className="bg-white rounded-2xl p-5 border border-gray-200 custom-shadow">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div className="flex items-center space-x-2">
+                                                    <span className={`${g.topicBadge} text-white font-bold text-xs px-2 py-1 rounded-full`}>모둠 {g.groupNumber}</span>
+                                                    <span className="text-sm font-bold text-gray-700">{g.topicName}</span>
+                                                </div>
+                                                <span className="text-xs text-gray-500">역할 균형 <b className="text-emerald-600">{g.balanceScore}%</b></span>
+                                            </div>
+                                            <ul className="space-y-1.5">
+                                                {g.members.map(m => {
+                                                    const role = ROLES.find(r => r.id === m.role);
+                                                    return (
+                                                        <li key={m.id} className="flex items-center justify-between text-sm">
+                                                            <span className="font-medium">{m.name}</span>
+                                                            <span className={`text-xs px-2 py-0.5 rounded border ${role?.color}`}>
+                                                                <i className={`fa-solid ${role?.icon} mr-1`}></i>{role?.name}
+                                                            </span>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 비밀번호 변경 모달 */}
+                    {showPwModal && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
+                                <h3 className="font-bold text-lg mb-3">교사 비밀번호 변경</h3>
+                                <form onSubmit={handleChangePassword} className="space-y-3">
+                                    <input type="text" value={newPwInput}
+                                        onChange={(e) => setNewPwInput(e.target.value)}
+                                        placeholder="새 비밀번호"
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl" />
+                                    <div className="flex gap-2">
+                                        <button type="button" onClick={() => setShowPwModal(false)}
+                                            className="flex-1 py-2.5 bg-gray-200 hover:bg-gray-300 rounded-xl font-bold text-sm">취소</button>
+                                        <button type="submit"
+                                            className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm">저장</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
