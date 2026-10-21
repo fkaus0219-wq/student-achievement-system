@@ -3,37 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>해남 어린이 시민단체 모둠 구성기</title>
-    <!-- Tailwind CSS -->
+    <title>해남 지역문제 해결 크라우드 펀딩 - 초등 4학년</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & React DOM -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-    <!-- Babel -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- FontAwesome Icons -->
+    <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
 
-    <!-- ✅ Firebase SDK (compat 버전: Babel/UMD 환경과 바로 호환) -->
+    <!-- ✅ Firebase SDK (compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
+    <script>
+        tailwind.config = {
+            theme: { extend: { fontFamily: { sans: ['Noto Sans KR', 'sans-serif'] } } }
+        }
+    </script>
     <style>
-        body {
-            font-family: 'Noto Sans KR', sans-serif;
-            background-color: #f0fdf4;
-        }
-        .font-title {
-            font-family: 'Gowun Dodum', sans-serif;
-        }
-        .custom-shadow {
-            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.1), 0 8px 10px -6px rgba(16, 185, 129, 0.1);
-        }
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .sync-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981; box-shadow:0 0 0 0 rgba(16,185,129,.7); animation: pulseDot 1.6s infinite; }
+        @keyframes pulseDot { 0%{box-shadow:0 0 0 0 rgba(16,185,129,.6);} 70%{box-shadow:0 0 0 8px rgba(16,185,129,0);} 100%{box-shadow:0 0 0 0 rgba(16,185,129,0);} }
     </style>
 
-    <!-- ✅ Firebase 초기화 (전역에 db 노출) -->
+    <!-- ✅ Firebase 초기화 -->
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyAGErlS-s-3syvMMiPAULnKqE6S8apAr18",
@@ -45,855 +48,1124 @@
         };
         firebase.initializeApp(firebaseConfig);
         window.db = firebase.firestore();
-        window.fb = firebase; // 트랜잭션/배치 등 사용 편의
+        window.fb = firebase;
     </script>
 </head>
-<body class="text-gray-800 antialiased min-h-screen">
-    <div id="root"></div>
+<body class="bg-amber-50/50 min-h-screen text-slate-800 flex flex-col pb-12">
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+    <!-- Header -->
+    <header class="bg-white border-b-4 border-amber-300 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-2">
+            <div class="flex items-center space-x-3">
+                <div class="bg-amber-400 text-amber-900 w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-2xl shadow-md transform -rotate-3">🌱</div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-black text-amber-900 tracking-tight flex items-center gap-2">
+                        <span>해남 지역문제 해결 크라우드 펀딩</span>
+                        <span class="text-xs bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold hidden sm:inline-block">사회 4학년</span>
+                    </h1>
+                    <p class="text-xs text-slate-500 font-medium hidden sm:block">
+                        <span class="sync-dot align-middle mr-1"></span>
+                        <span id="sync-status">Firebase 실시간 동기화 - 어디서든 함께 참여해요!</span>
+                    </p>
+                </div>
+            </div>
 
-        // ✅ Firestore 참조
-        const db = window.db;
-        const SUBMISSIONS_COL = 'submissions';
-        const SETTINGS_DOC = db.collection('settings').doc('teacher');
+            <div class="flex items-center gap-2">
+                <div class="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                    <button id="btn-tab-student" onclick="switchTab('student')" class="px-3 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center gap-1.5 bg-amber-400 text-amber-950 shadow-sm">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                        <span>학생 모드</span>
+                    </button>
+                    <button id="btn-tab-teacher" onclick="requestTeacherAccess()" class="px-3 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                        <span>교사 모드</span>
+                        <i class="fa-solid fa-lock text-[10px] text-slate-400 ml-0.5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
 
-        // 해남군 지역 문제 주제 목록
-        const TOPICS = [
-            { id: 'demographics', name: '인구 감소 및 아동 수 감소', icon: 'fa-users-slash', color: 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100', badge: 'bg-rose-500' },
-            { id: 'traffic', name: '교통 안전 (스쿨존·안전길)', icon: 'fa-bus-school', color: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100', badge: 'bg-amber-500' },
-            { id: 'environment', name: '생활 환경 (쓰레기·공원·깨끗한 거리)', icon: 'fa-recycle', color: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100', badge: 'bg-emerald-500' },
-            { id: 'community', name: '이웃과 마을 (어르신·놀이공간)', icon: 'fa-hand-holding-heart', color: 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100', badge: 'bg-sky-500' },
-            { id: 'economy', name: '지역 축제 및 경제 (특산물·시장)', icon: 'fa-store', color: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100', badge: 'bg-purple-500' },
-            { id: 'healthcare', name: '보건 의료 및 안전 (병원·응급)', icon: 'fa-hospital-user', color: 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100', badge: 'bg-teal-500' }
-        ];
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-1 w-full">
 
-        // 시민단체 역할 목록
-        const ROLES = [
-            { id: 'design', name: '디자인 제작', desc: '포스터, 피켓, 홍보물 그림 그리기 및 꾸미기', icon: 'fa-palette', color: 'text-pink-600 bg-pink-100 border-pink-300' },
-            { id: 'writing', name: '글쓰기 기획', desc: '성명서, 건의문, 신문 기사 내용 작성하기', icon: 'fa-pen-nib', color: 'text-indigo-600 bg-indigo-100 border-indigo-300' },
-            { id: 'research', name: '자료 조사', desc: '인터넷 검색, 사진 촬영, 알맞은 인터뷰 조사', icon: 'fa-magnifying-glass', color: 'text-cyan-600 bg-cyan-100 border-cyan-300' },
-            { id: 'presentation', name: '발표 담당', desc: '우리 모둠의 의견을 학급 친구들 앞에서 발표하기', icon: 'fa-bullhorn', color: 'text-amber-600 bg-amber-100 border-amber-300' },
-            { id: 'coordination', name: '조율·정리 담당', desc: '활동 순서 정리, 시간 확인, 모둠원 잘 다독이기', icon: 'fa-clipboard-check', color: 'text-emerald-600 bg-emerald-100 border-emerald-300' }
-        ];
+        <!-- STUDENT VIEW -->
+        <div id="view-student" class="space-y-6">
 
-        // 샘플 학생 데이터 (시연용)
-        const SAMPLE_STUDENTS = [
-            { name: '김해남', topic: 'traffic', detail: '학교 앞 어린이 보호구역에 방지턱과 신호등이 더 필요해요.', role: 'presentation', timestamp: '10:01' },
-            { name: '이땅끝', topic: 'traffic', detail: '학원 버스 내리는 곳이 위험해서 안내 표지판을 만들고 싶어요.', role: 'design', timestamp: '10:02' },
-            { name: '박고구마', topic: 'traffic', detail: '자전거 타는 친구들이 안전모를 쓸 수 있게 캠페인을 해요.', role: 'writing', timestamp: '10:03' },
-            { name: '최공룡', topic: 'traffic', detail: '스쿨존 위반 차량 신고 및 단속 건의문을 쓰고 싶어요.', role: 'research', timestamp: '10:05' },
-            { name: '정우수', topic: 'environment', detail: '마을 천변에 버려진 플라스틱 쓰레기를 줍고 안내판을 세워요.', role: 'design', timestamp: '10:06' },
-            { name: '강바다', topic: 'environment', detail: '분리수거 방법을 쉬운 그림으로 만들어 홍보하고 싶어요.', role: 'coordination', timestamp: '10:08' },
-            { name: '윤하늘', topic: 'environment', detail: '공원에 꽃밭을 가꾸고 환경 지킴이 지도 만들기.', role: 'research', timestamp: '10:09' },
-            { name: '장들판', topic: 'environment', detail: '일회용품 줄이기 운동 가이드북 제작하기.', role: 'writing', timestamp: '10:10' },
-            { name: '임태양', topic: 'demographics', detail: '해남에 아이들이 놀 수 있는 실내 놀이터 건의하기.', role: 'presentation', timestamp: '10:12' },
-            { name: '한소송', topic: 'demographics', detail: '젊은 부모님들이 살기 좋은 우리 동네 자랑 카드 뉴스 만들기.', role: 'design', timestamp: '10:13' },
-            { name: '오세찬', topic: 'demographics', detail: '다른 지역 친구들에게 해남을 홍보하는 영상 기획서 쓰기.', role: 'writing', timestamp: '10:15' },
-            { name: '서유리', topic: 'demographics', detail: '아이들이 필요한 시설 설문조사 진행하기.', role: 'research', timestamp: '10:16' },
-            { name: '신다정', topic: 'community', detail: '마을 경로당 어르신들께 옛날 이야기 듣고 자서전 써드리기.', role: 'writing', timestamp: '10:18' },
-            { name: '권민준', topic: 'community', detail: '어르신들이 길 건너기 편하도록 쉼터 의자 설치 건의.', role: 'coordination', timestamp: '10:19' },
-            { name: '황지아', topic: 'community', detail: '마을 축제에서 어르신과 함께하는 놀이 부스 운영.', role: 'presentation', timestamp: '10:20' },
-            { name: '송현우', topic: 'economy', detail: '해남 특산물 고구마와 배추를 홍보하는 캐릭터 그리기.', role: 'design', timestamp: '10:22' },
-            { name: '류은지', topic: 'economy', detail: '전통시장에 젊은 손님이 많이 오도록 지도 만들기.', role: 'research', timestamp: '10:23' },
-            { name: '문성진', topic: 'economy', detail: '해남 어린이 특산물 홍보 대사 포스터 제작.', role: 'presentation', timestamp: '10:25' },
-            { name: '배서연', topic: 'healthcare', detail: '응급처치 방법을 알리는 가이드 카드 만들기.', role: 'design', timestamp: '10:27' },
-            { name: '조원준', topic: 'healthcare', detail: '주말에도 이용할 수 있는 병원 약국 정보 지도를 꾸미기.', role: 'coordination', timestamp: '10:28' }
-        ];
+            <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <label class="text-sm font-bold text-slate-700 flex items-center gap-1.5 whitespace-nowrap">
+                        <i class="fa-solid fa-users text-amber-500"></i> 내 모둠 선택:
+                    </label>
+                    <select id="my-group-select" onchange="changeMyGroup(this.value)" class="bg-amber-50 border-2 border-amber-300 rounded-xl px-4 py-2 font-bold text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-400 text-base cursor-pointer"></select>
+                </div>
 
-        function App() {
-            const [mode, setMode] = useState('student');
+                <div id="my-wallet-card" class="bg-gradient-to-r from-amber-400 to-orange-400 rounded-2xl px-5 py-3 text-white flex items-center justify-between shadow-sm min-w-[280px]">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">💰</div>
+                        <div>
+                            <div class="text-xs text-amber-100 font-medium">우리 모둠 남은 자본금</div>
+                            <div id="my-remaining-budget" class="text-xl font-black tracking-tight">0원</div>
+                        </div>
+                    </div>
+                    <span class="text-xs bg-white/30 text-white font-bold px-2.5 py-1 rounded-lg">투자 가능</span>
+                </div>
+            </div>
 
-            // 학생 입력 Form State
-            const [studentName, setStudentName] = useState('');
-            const [selectedTopic, setSelectedTopic] = useState('');
-            const [topicDetail, setTopicDetail] = useState('');
-            const [selectedRole, setSelectedRole] = useState('');
-            const [isSubmitted, setIsSubmitted] = useState(false);
+            <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3 text-blue-900 text-sm">
+                <i class="fa-solid fa-circle-info text-blue-500 text-lg mt-0.5"></i>
+                <div><strong class="font-bold">펀딩 규칙:</strong>
+                    <span class="ml-1">자신의 모둠에는 펀딩할 수 없어요! 다른 모둠의 아이디어를 꼼꼼히 읽어보고, 가장 합리적이고 지역에 도움이 되는 해결책에 보탬이 되어주세요.</span>
+                </div>
+            </div>
 
-            // 교사 관리 State
-            const [submissions, setSubmissions] = useState([]);
-            const [loading, setLoading] = useState(true);
-            const [teacherPassword, setTeacherPassword] = useState('');
-            const [storedPassword, setStoredPassword] = useState('1234');
-            const [isTeacherAuthenticated, setIsTeacherAuthenticated] = useState(false);
-            const [groupSize, setGroupSize] = useState(4);
-            const [generatedGroups, setGeneratedGroups] = useState(null);
-            const [teacherTab, setTeacherTab] = useState('overview');
-            const [showPwModal, setShowPwModal] = useState(false);
-            const [newPwInput, setNewPwInput] = useState('');
-            const [migrationStatus, setMigrationStatus] = useState(''); // 마이그레이션 상태 메시지
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div class="lg:col-span-5 space-y-4">
+                    <div class="bg-white rounded-3xl p-6 shadow-sm border-2 border-slate-200">
+                        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+                            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span class="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-lg font-black" id="my-group-badge">1모둠</span>
+                                <span>우리 모둠 해결방안 작성</span>
+                            </h2>
+                            <button onclick="saveMyProposal()" class="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-sm flex items-center gap-1">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> 저장하기
+                            </button>
+                        </div>
 
-            // ✅ Firestore 실시간 구독 - submissions
-            useEffect(() => {
-                const unsub = db.collection(SUBMISSIONS_COL)
-                    .orderBy('createdAt', 'asc')
-                    .onSnapshot(
-                        (snap) => {
-                            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                            setSubmissions(list);
-                            setLoading(false);
-                        },
-                        (err) => {
-                            console.error('Firestore 구독 오류:', err);
-                            setLoading(false);
-                        }
-                    );
-                return () => unsub();
-            }, []);
-
-            // ✅ Firestore 실시간 구독 - 교사 비밀번호
-            useEffect(() => {
-                const unsub = SETTINGS_DOC.onSnapshot((doc) => {
-                    if (doc.exists && doc.data().password) {
-                        setStoredPassword(doc.data().password);
-                    }
-                });
-                return () => unsub();
-            }, []);
-
-            // 비밀번호 변경 저장 → Firestore
-            const handleChangePassword = async (e) => {
-                e.preventDefault();
-                if (!newPwInput.trim()) {
-                    alert('새 비밀번호를 입력해주세요.');
-                    return;
-                }
-                try {
-                    await SETTINGS_DOC.set({ password: newPwInput.trim() }, { merge: true });
-                    setNewPwInput('');
-                    setShowPwModal(false);
-                    alert('교사 비밀번호가 성공적으로 변경되었습니다!');
-                } catch (err) {
-                    console.error(err);
-                    alert('비밀번호 저장 중 오류가 발생했습니다: ' + err.message);
-                }
-            };
-
-            // 학생 설문 제출 → Firestore addDoc
-            const handleSubmitStudent = async (e) => {
-                e.preventDefault();
-                if (!studentName.trim() || !selectedTopic || !topicDetail.trim() || !selectedRole) {
-                    alert('모든 질문 항목에 답변을 작성해주세요!');
-                    return;
-                }
-                const newEntry = {
-                    name: studentName.trim(),
-                    topic: selectedTopic,
-                    detail: topicDetail.trim(),
-                    role: selectedRole,
-                    timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-                try {
-                    await db.collection(SUBMISSIONS_COL).add(newEntry);
-                    setIsSubmitted(true);
-                } catch (err) {
-                    console.error(err);
-                    alert('제출 중 오류가 발생했습니다: ' + err.message);
-                }
-            };
-
-            const handleResetForm = () => {
-                setStudentName('');
-                setSelectedTopic('');
-                setTopicDetail('');
-                setSelectedRole('');
-                setIsSubmitted(false);
-            };
-
-            const handleTeacherAuth = (e) => {
-                e.preventDefault();
-                if (teacherPassword === storedPassword) {
-                    setIsTeacherAuthenticated(true);
-                } else {
-                    alert('비밀번호가 올바르지 않습니다.');
-                }
-            };
-
-            // 샘플 데이터 → Firestore 배치 추가
-            const handleLoadSampleData = async () => {
-                if (!confirm('시연용 학생 20명의 응답 데이터를 로드하시겠습니까? (기존 응답에 추가됩니다)')) return;
-                try {
-                    const batch = db.batch();
-                    SAMPLE_STUDENTS.forEach(s => {
-                        const ref = db.collection(SUBMISSIONS_COL).doc();
-                        batch.set(ref, {
-                            ...s,
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                    });
-                    await batch.commit();
-                } catch (err) {
-                    console.error(err);
-                    alert('샘플 데이터 추가 중 오류: ' + err.message);
-                }
-            };
-
-            // 전체 삭제 → Firestore 배치 삭제
-            const handleClearData = async () => {
-                if (!confirm('정말로 모든 학생 응답 데이터를 초기화하시겠습니까?')) return;
-                try {
-                    const snap = await db.collection(SUBMISSIONS_COL).get();
-                    const batch = db.batch();
-                    snap.docs.forEach(d => batch.delete(d.ref));
-                    await batch.commit();
-                    setGeneratedGroups(null);
-                } catch (err) {
-                    console.error(err);
-                    alert('삭제 중 오류: ' + err.message);
-                }
-            };
-
-            // ✅ localStorage → Firestore 마이그레이션
-            const handleMigrateFromLocalStorage = async () => {
-                try {
-                    setMigrationStatus('🔎 localStorage 데이터 확인 중...');
-                    const rawSubs = localStorage.getItem('haenam_submissions');
-                    const rawPw = localStorage.getItem('haenam_teacher_password');
-
-                    const localSubs = rawSubs ? JSON.parse(rawSubs) : [];
-                    const localPw = rawPw || null;
-
-                    if (localSubs.length === 0 && !localPw) {
-                        setMigrationStatus('');
-                        alert('이전할 localStorage 데이터가 없습니다.');
-                        return;
-                    }
-
-                    const ok = confirm(
-                        `localStorage에서 다음 데이터를 Firestore로 이전합니다.\n\n` +
-                        `• 학생 응답: ${localSubs.length}건\n` +
-                        `• 교사 비밀번호: ${localPw ? '있음' : '없음'}\n\n` +
-                        `계속 진행할까요? (기존 Firestore 데이터는 그대로 유지되며, 이 응답들이 추가됩니다)`
-                    );
-                    if (!ok) {
-                        setMigrationStatus('');
-                        return;
-                    }
-
-                    // 응답 데이터 배치 업로드 (500건 단위)
-                    if (localSubs.length > 0) {
-                        setMigrationStatus(`⏫ ${localSubs.length}건의 응답 업로드 중...`);
-                        const CHUNK = 400;
-                        for (let i = 0; i < localSubs.length; i += CHUNK) {
-                            const chunk = localSubs.slice(i, i + CHUNK);
-                            const batch = db.batch();
-                            chunk.forEach(sub => {
-                                const ref = db.collection(SUBMISSIONS_COL).doc();
-                                const { id, ...rest } = sub; // 기존 id는 Firestore가 새로 발급
-                                batch.set(ref, {
-                                    ...rest,
-                                    migratedFromLocal: true,
-                                    legacyId: id || null,
-                                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                                });
-                            });
-                            await batch.commit();
-                        }
-                    }
-
-                    // 비밀번호 이전
-                    if (localPw) {
-                        setMigrationStatus('🔐 교사 비밀번호 저장 중...');
-                        await SETTINGS_DOC.set({ password: localPw }, { merge: true });
-                    }
-
-                    // 성공 후 localStorage 정리 여부 묻기
-                    const clearLocal = confirm(
-                        '✅ 이전이 완료되었습니다!\n\n' +
-                        '중복 저장을 막기 위해 localStorage에 남아있는 데이터를 삭제할까요?\n' +
-                        '(권장: 예)'
-                    );
-                    if (clearLocal) {
-                        localStorage.removeItem('haenam_submissions');
-                        localStorage.removeItem('haenam_teacher_password');
-                    }
-                    setMigrationStatus('✅ 마이그레이션 완료!');
-                    setTimeout(() => setMigrationStatus(''), 4000);
-                } catch (err) {
-                    console.error(err);
-                    setMigrationStatus('');
-                    alert('마이그레이션 중 오류가 발생했습니다: ' + err.message);
-                }
-            };
-
-            // 지능형 모둠 구성 알고리즘 (기존 로직 유지)
-            const generateSmartGroups = () => {
-                if (submissions.length === 0) {
-                    alert('제출된 학생 응답이 없어 모둠을 구성할 수 없습니다.');
-                    return;
-                }
-                const topicBuckets = {};
-                TOPICS.forEach(t => topicBuckets[t.id] = []);
-                submissions.forEach(sub => {
-                    if (topicBuckets[sub.topic]) topicBuckets[sub.topic].push(sub);
-                });
-
-                const allGroups = [];
-                let groupCounter = 1;
-
-                Object.keys(topicBuckets).forEach(topicId => {
-                    const studentsInTopic = [...topicBuckets[topicId]];
-                    if (studentsInTopic.length === 0) return;
-                    const topicObj = TOPICS.find(t => t.id === topicId);
-
-                    while (studentsInTopic.length > 0) {
-                        let currentTargetSize = Math.min(groupSize, studentsInTopic.length);
-                        if (studentsInTopic.length > groupSize && studentsInTopic.length < groupSize * 2) {
-                            currentTargetSize = Math.ceil(studentsInTopic.length / 2);
-                        }
-                        const currentGroupMembers = [];
-                        const usedRoles = new Set();
-
-                        for (let i = 0; i < currentTargetSize; i++) {
-                            let bestIndex = studentsInTopic.findIndex(s => !usedRoles.has(s.role));
-                            if (bestIndex === -1) bestIndex = 0;
-                            const selectedStudent = studentsInTopic.splice(bestIndex, 1)[0];
-                            currentGroupMembers.push(selectedStudent);
-                            usedRoles.add(selectedStudent.role);
-                        }
-
-                        const uniqueRoleCount = new Set(currentGroupMembers.map(m => m.role)).size;
-                        const balanceScore = Math.round((uniqueRoleCount / Math.min(5, currentGroupMembers.length)) * 100);
-
-                        allGroups.push({
-                            id: `group_${groupCounter}`,
-                            groupNumber: groupCounter,
-                            topicId: topicId,
-                            topicName: topicObj ? topicObj.name : '지역 문제',
-                            topicColor: topicObj ? topicObj.color : '',
-                            topicBadge: topicObj ? topicObj.badge : 'bg-emerald-500',
-                            members: currentGroupMembers,
-                            balanceScore: balanceScore
-                        });
-                        groupCounter++;
-                    }
-                });
-
-                setGeneratedGroups(allGroups);
-                setTeacherTab('groups');
-            };
-
-            return (
-                <div className="min-h-screen flex flex-col justify-between">
-                    {/* 상단 헤더 */}
-                    <header className="bg-emerald-600 text-white shadow-lg sticky top-0 z-50">
-                        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-y-2">
-                            <div className="flex items-center space-x-3">
-                                <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
-                                    <i className="fa-solid fa-people-roof text-2xl text-yellow-300"></i>
+                        <form id="my-proposal-form" onsubmit="event.preventDefault(); saveMyProposal();" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">우리 모둠 이름 / 주제</label>
+                                <input type="text" id="prop-title" placeholder="예: 무단투기 없는 깨끗한 마을 신문" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none transition" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm sm:text-base font-extrabold text-slate-800 mb-1.5">우리가 찾은 지역 문제 🚨</label>
+                                <textarea id="prop-problem" rows="3" placeholder="어떤 지역 문제가 발생하고 있나요?" class="w-full bg-slate-50 border-2 border-slate-200 rounded-xl p-3 text-base font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none transition" required></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm sm:text-base font-extrabold text-slate-800 mb-1.5">합리적인 해결 방안 💡</label>
+                                <textarea id="prop-solution" rows="4" placeholder="어떻게 해결하면 좋을까요? 구체적인 아이디어를 적어주세요." class="w-full bg-slate-50 border-2 border-slate-200 rounded-xl p-3 text-base font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none transition" required></textarea>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">필요한 목표 예산 (원)</label>
+                                    <input type="number" id="prop-goal" min="100000" step="50000" placeholder="1000000" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-amber-700 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none transition" required>
                                 </div>
                                 <div>
-                                    <h1 className="text-xl md:text-2xl font-bold font-title tracking-wide">
-                                        해남 어린이 시민단체 모둠 구성
-                                    </h1>
-                                    <p className="text-xs text-emerald-100 hidden sm:block">
-                                        <i className="fa-solid fa-cloud mr-1"></i>
-                                        Firestore 실시간 연동 - 어디서든 함께 참여해요!
-                                    </p>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">아이콘 선택</label>
+                                    <select id="prop-icon" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none transition">
+                                        <option value="🌳">🌳 환경 / 공원</option>
+                                        <option value="🚶">🚶 교통 / 안전</option>
+                                        <option value="♻️">♻️ 쓰레기 / 재활용</option>
+                                        <option value="👵">👵 복지 / 어르신</option>
+                                        <option value="🐾">🐾 동물 / 소음</option>
+                                        <option value="🎨">🎨 문화 / 소통</option>
+                                    </select>
                                 </div>
                             </div>
-
-                            <div className="flex items-center bg-emerald-700/60 p-1 rounded-xl border border-emerald-500/30 text-sm">
-                                <button
-                                    onClick={() => setMode('student')}
-                                    className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-1.5 ${
-                                        mode === 'student' ? 'bg-white text-emerald-800 shadow' : 'text-emerald-100 hover:text-white'
-                                    }`}
-                                >
-                                    <i className="fa-solid fa-pen-to-square"></i>
-                                    <span>학생 설문</span>
-                                </button>
-                                <button
-                                    onClick={() => setMode('teacher')}
-                                    className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-1.5 ${
-                                        mode === 'teacher' ? 'bg-white text-emerald-800 shadow' : 'text-emerald-100 hover:text-white'
-                                    }`}
-                                >
-                                    <i className="fa-solid fa-user-check"></i>
-                                    <span>교사 전용 대시보드</span>
-                                    {submissions.length > 0 && (
-                                        <span className="ml-1 px-1.5 py-0.5 text-xs bg-amber-400 text-amber-950 font-bold rounded-full">
-                                            {submissions.length}
-                                        </span>
-                                    )}
-                                </button>
+                            <div>
+                                <label class="block text-sm sm:text-base font-extrabold text-slate-800 mb-1.5">기대되는 효과 ✨</label>
+                                <input type="text" id="prop-effect" placeholder="예: 동네가 깨끗해지고 시민들의 웃음이 늘어납니다." class="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2.5 text-base font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none transition">
                             </div>
-                        </div>
-                    </header>
-
-                    <main className="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
-                        {mode === 'student' ? (
-                            <StudentView
-                                studentName={studentName} setStudentName={setStudentName}
-                                selectedTopic={selectedTopic} setSelectedTopic={setSelectedTopic}
-                                topicDetail={topicDetail} setTopicDetail={setTopicDetail}
-                                selectedRole={selectedRole} setSelectedRole={setSelectedRole}
-                                isSubmitted={isSubmitted}
-                                handleSubmitStudent={handleSubmitStudent}
-                                handleResetForm={handleResetForm}
-                            />
-                        ) : (
-                            <TeacherView
-                                loading={loading}
-                                isTeacherAuthenticated={isTeacherAuthenticated}
-                                teacherPassword={teacherPassword} setTeacherPassword={setTeacherPassword}
-                                handleTeacherAuth={handleTeacherAuth}
-                                submissions={submissions}
-                                handleLoadSampleData={handleLoadSampleData}
-                                handleClearData={handleClearData}
-                                handleMigrateFromLocalStorage={handleMigrateFromLocalStorage}
-                                migrationStatus={migrationStatus}
-                                groupSize={groupSize} setGroupSize={setGroupSize}
-                                generateSmartGroups={generateSmartGroups}
-                                generatedGroups={generatedGroups} setGeneratedGroups={setGeneratedGroups}
-                                teacherTab={teacherTab} setTeacherTab={setTeacherTab}
-                                setShowPwModal={setShowPwModal} showPwModal={showPwModal}
-                                newPwInput={newPwInput} setNewPwInput={setNewPwInput}
-                                handleChangePassword={handleChangePassword}
-                            />
-                        )}
-                    </main>
-
-                    <footer className="bg-slate-800 text-slate-400 py-6 text-center text-xs mt-12 border-t border-slate-700">
-                        <div className="max-w-6xl mx-auto px-4">
-                            <p className="font-medium text-slate-300 mb-1">초등학교 4학년 사회 교과 연계 - 해남군 지역문제 해결 시민단체 모둠 세팅기</p>
-                            <p>학생 제출 데이터는 Firebase Firestore에 저장되며, 교사 계정에서만 통합 확인할 수 있습니다.</p>
-                        </div>
-                    </footer>
-                </div>
-            );
-        }
-
-        function StudentView({
-            studentName, setStudentName,
-            selectedTopic, setSelectedTopic,
-            topicDetail, setTopicDetail,
-            selectedRole, setSelectedRole,
-            isSubmitted, handleSubmitStudent, handleResetForm
-        }) {
-            if (isSubmitted) {
-                return (
-                    <div className="max-w-xl mx-auto bg-white rounded-3xl p-8 text-center custom-shadow border border-emerald-100">
-                        <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-inner">
-                            <i className="fa-solid fa-paper-plane"></i>
-                        </div>
-                        <h2 className="text-2xl font-bold text-gray-800 font-title mb-2">설문 제출 완료! 🎉</h2>
-                        <p className="text-gray-600 mb-6 leading-relaxed">
-                            <span className="font-bold text-emerald-700">{studentName}</span> 학생의 생각과 강점이 선생님께 안전하게 제출되었습니다.<br/>
-                            친구들의 의견과 잘 어우러지도록 멋진 시민단체 모둠을 만들어 줄게요!
-                        </p>
-                        <div className="bg-emerald-50 rounded-2xl p-4 text-left mb-6 text-sm space-y-2 border border-emerald-100">
-                            <div className="flex justify-between border-b border-emerald-200/60 pb-2">
-                                <span className="text-gray-500">선택한 지역문제:</span>
-                                <span className="font-bold text-emerald-900">{TOPICS.find(t => t.id === selectedTopic)?.name}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">시민단체 내 역할:</span>
-                                <span className="font-bold text-emerald-900">{ROLES.find(r => r.id === selectedRole)?.name}</span>
-                            </div>
-                        </div>
-                        <button
-                            onClick={handleResetForm}
-                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition shadow hover:shadow-lg flex items-center justify-center space-x-2"
-                        >
-                            <i className="fa-solid fa-rotate-left"></i>
-                            <span>다시 작성하거나 다른 학생 제출하기</span>
-                        </button>
-                    </div>
-                );
-            }
-
-            return (
-                <div className="max-w-3xl mx-auto bg-white rounded-3xl p-6 md:p-10 custom-shadow border border-emerald-100">
-                    <div className="border-b border-gray-100 pb-5 mb-8">
-                        <div className="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 font-bold text-xs rounded-full mb-2">
-                            초등 4학년 사회 Ⅱ. 우리 지역의 환경과 삶
-                        </div>
-                        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 font-title">
-                            땅끝 해남 어린이 시민단체 희망 설문
-                        </h2>
-                        <p className="text-gray-600 text-sm mt-1">
-                            우리가 살고 있는 해남군의 문제를 해결하기 위해 어떤 시민단체에 참여하고 싶은지 알려주세요!
-                        </p>
-                    </div>
-
-                    <form onSubmit={handleSubmitStudent} className="space-y-8">
-                        {/* 1. 이름 */}
-                        <div className="bg-gray-50/80 p-5 rounded-2xl border border-gray-200/80">
-                            <label className="text-base font-bold text-gray-800 mb-2 flex items-center">
-                                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center mr-2">1</span>
-                                이름을 적어주세요.
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="이름 입력 (예: 김해남)"
-                                value={studentName}
-                                onChange={(e) => setStudentName(e.target.value)}
-                                required
-                                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm font-bold"
-                            />
-                        </div>
-
-                        {/* 2. 주제 */}
-                        <div>
-                            <label className="text-base font-bold text-gray-800 mb-3 flex items-center">
-                                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center mr-2">2</span>
-                                내가 가장 관심 있는 해남군 지역문제 주제를 하나 선택하세요.
-                            </label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {TOPICS.map((t) => {
-                                    const isSelected = selectedTopic === t.id;
-                                    return (
-                                        <div
-                                            key={t.id}
-                                            onClick={() => setSelectedTopic(t.id)}
-                                            className={`cursor-pointer p-4 rounded-2xl border-2 transition-all flex items-start space-x-3.5 ${
-                                                isSelected ? 'border-emerald-600 bg-emerald-50 shadow-md ring-2 ring-emerald-200' : 'border-gray-200 bg-white hover:border-emerald-300 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            <div className={`p-3 rounded-xl text-lg ${t.color}`}>
-                                                <i className={`fa-solid ${t.icon}`}></i>
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center justify-between">
-                                                    <h3 className="font-bold text-gray-800 text-sm">{t.name}</h3>
-                                                    {isSelected && <i className="fa-solid fa-circle-check text-emerald-600 text-lg"></i>}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* 3. 상세 */}
-                        <div>
-                            <label className="text-base font-bold text-gray-800 mb-2 flex items-center">
-                                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center mr-2">3</span>
-                                내가 선택한 주제에서 더 깊이 다뤄보고 싶은 구체적인 지역문제는 무엇인가요?
-                            </label>
-                            <textarea
-                                rows="3"
-                                placeholder="예: 우리 학교 앞 도로에 횡단보도가 어두워서 밤에 위험해요 / 해남의 고구마 특산물을 더 잘 알리는 캐릭터를 만들고 싶어요 등"
-                                value={topicDetail}
-                                onChange={(e) => setTopicDetail(e.target.value)}
-                                required
-                                className="w-full p-4 rounded-2xl border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm leading-relaxed"
-                            ></textarea>
-                        </div>
-
-                        {/* 4. 역할 */}
-                        <div>
-                            <label className="text-base font-bold text-gray-800 mb-2 flex items-center">
-                                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center mr-2">4</span>
-                                시민단체 활동에서 내가 어떤 일을 할 때 가장 신나고 잘할 수 있나요?
-                            </label>
-                            <p className="text-xs text-gray-500 mb-3 pl-8">* 나의 장점을 잘 발휘할 수 있는 역할을 1가지 선택해주세요.</p>
-                            <div className="space-y-2.5">
-                                {ROLES.map((role) => {
-                                    const isSelected = selectedRole === role.id;
-                                    return (
-                                        <div
-                                            key={role.id}
-                                            onClick={() => setSelectedRole(role.id)}
-                                            className={`cursor-pointer p-3.5 rounded-2xl border-2 transition-all flex items-center justify-between ${
-                                                isSelected ? 'border-emerald-600 bg-emerald-50 shadow-sm ring-2 ring-emerald-200' : 'border-gray-200 hover:border-emerald-200 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            <div className="flex items-center space-x-3">
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${role.color}`}>
-                                                    <i className={`fa-solid ${role.icon} text-base`}></i>
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-bold text-gray-800 text-sm">{role.name}</h4>
-                                                    <p className="text-xs text-gray-500">{role.desc}</p>
-                                                </div>
-                                            </div>
-                                            <input type="radio" name="roleGroup" checked={isSelected} onChange={() => {}} className="w-4 h-4 text-emerald-600 focus:ring-emerald-500" />
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* 제출 */}
-                        <button
-                            type="submit"
-                            className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition shadow-md hover:shadow-lg flex items-center justify-center space-x-2 text-base"
-                        >
-                            <i className="fa-solid fa-cloud-arrow-up"></i>
-                            <span>내 의견 선생님께 제출하기</span>
-                        </button>
-                    </form>
-                </div>
-            );
-        }
-
-        function TeacherView(props) {
-            const {
-                loading,
-                isTeacherAuthenticated, teacherPassword, setTeacherPassword, handleTeacherAuth,
-                submissions, handleLoadSampleData, handleClearData,
-                handleMigrateFromLocalStorage, migrationStatus,
-                groupSize, setGroupSize, generateSmartGroups,
-                generatedGroups, teacherTab, setTeacherTab,
-                setShowPwModal, showPwModal, newPwInput, setNewPwInput, handleChangePassword
-            } = props;
-
-            if (!isTeacherAuthenticated) {
-                return (
-                    <div className="max-w-md mx-auto bg-white rounded-3xl p-8 custom-shadow border border-emerald-100">
-                        <div className="text-center mb-6">
-                            <div className="w-16 h-16 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl">
-                                <i className="fa-solid fa-lock"></i>
-                            </div>
-                            <h2 className="text-xl font-bold font-title">교사 전용 대시보드</h2>
-                            <p className="text-sm text-gray-500 mt-1">접근하려면 비밀번호를 입력하세요. (기본값: 1234)</p>
-                        </div>
-                        <form onSubmit={handleTeacherAuth} className="space-y-3">
-                            <input
-                                type="password"
-                                value={teacherPassword}
-                                onChange={(e) => setTeacherPassword(e.target.value)}
-                                placeholder="교사 비밀번호"
-                                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                            />
-                            <button type="submit" className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl">
-                                입장하기
-                            </button>
                         </form>
                     </div>
-                );
-            }
-
-            // 통계
-            const topicCounts = TOPICS.map(t => ({
-                ...t, count: submissions.filter(s => s.topic === t.id).length
-            }));
-            const roleCounts = ROLES.map(r => ({
-                ...r, count: submissions.filter(s => s.role === r.id).length
-            }));
-
-            return (
-                <div className="space-y-6">
-                    {/* 상단 액션 바 */}
-                    <div className="bg-white rounded-3xl p-5 custom-shadow border border-emerald-100">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                                <h2 className="text-xl font-bold font-title text-gray-800">
-                                    <i className="fa-solid fa-chalkboard-user text-emerald-600 mr-2"></i>
-                                    교사 대시보드
-                                </h2>
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                    {loading ? (
-                                        <><i className="fa-solid fa-circle-notch fa-spin mr-1"></i> Firestore에서 데이터 불러오는 중...</>
-                                    ) : (
-                                        <>현재 Firestore에 저장된 응답 <b className="text-emerald-700">{submissions.length}</b>건 (실시간 동기화)</>
-                                    )}
-                                </p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                <button onClick={handleMigrateFromLocalStorage}
-                                    className="px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center space-x-1.5">
-                                    <i className="fa-solid fa-cloud-arrow-up"></i>
-                                    <span>localStorage → Firestore 이전</span>
-                                </button>
-                                <button onClick={handleLoadSampleData}
-                                    className="px-3 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-lg flex items-center space-x-1.5">
-                                    <i className="fa-solid fa-flask"></i>
-                                    <span>시연 데이터 추가</span>
-                                </button>
-                                <button onClick={() => setShowPwModal(true)}
-                                    className="px-3 py-2 text-xs font-bold bg-slate-600 hover:bg-slate-700 text-white rounded-lg flex items-center space-x-1.5">
-                                    <i className="fa-solid fa-key"></i>
-                                    <span>비밀번호 변경</span>
-                                </button>
-                                <button onClick={handleClearData}
-                                    className="px-3 py-2 text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white rounded-lg flex items-center space-x-1.5">
-                                    <i className="fa-solid fa-trash"></i>
-                                    <span>전체 초기화</span>
-                                </button>
-                            </div>
-                        </div>
-                        {migrationStatus && (
-                            <div className="mt-3 px-3 py-2 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-lg text-xs">
-                                {migrationStatus}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* 탭 */}
-                    <div className="flex gap-2 border-b border-gray-200">
-                        {[
-                            { id: 'overview', name: '현황', icon: 'fa-chart-pie' },
-                            { id: 'responses', name: '응답 목록', icon: 'fa-list' },
-                            { id: 'groups', name: '모둠 구성', icon: 'fa-users' }
-                        ].map(tab => (
-                            <button key={tab.id}
-                                onClick={() => setTeacherTab(tab.id)}
-                                className={`px-4 py-2 text-sm font-bold rounded-t-lg flex items-center space-x-1.5 ${
-                                    teacherTab === tab.id
-                                        ? 'bg-white text-emerald-700 border-x border-t border-emerald-200'
-                                        : 'text-gray-500 hover:text-emerald-600'
-                                }`}>
-                                <i className={`fa-solid ${tab.icon}`}></i>
-                                <span>{tab.name}</span>
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* 현황 */}
-                    {teacherTab === 'overview' && (
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div className="bg-white rounded-2xl p-5 border border-emerald-100 custom-shadow">
-                                <h3 className="font-bold text-sm mb-3 text-gray-700">주제별 신청 현황</h3>
-                                <div className="space-y-2">
-                                    {topicCounts.map(t => (
-                                        <div key={t.id} className="flex items-center">
-                                            <div className="w-32 text-xs text-gray-600 truncate">{t.name}</div>
-                                            <div className="flex-1 bg-gray-100 h-5 rounded-full overflow-hidden mx-2">
-                                                <div className={`${t.badge} h-full`} style={{width: `${submissions.length ? (t.count / submissions.length * 100) : 0}%`}}></div>
-                                            </div>
-                                            <div className="w-8 text-right text-xs font-bold text-gray-700">{t.count}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="bg-white rounded-2xl p-5 border border-emerald-100 custom-shadow">
-                                <h3 className="font-bold text-sm mb-3 text-gray-700">역할별 분포</h3>
-                                <div className="space-y-2">
-                                    {roleCounts.map(r => (
-                                        <div key={r.id} className="flex items-center">
-                                            <div className="w-32 text-xs text-gray-600 flex items-center">
-                                                <i className={`fa-solid ${r.icon} mr-1.5`}></i>{r.name}
-                                            </div>
-                                            <div className="flex-1 bg-gray-100 h-5 rounded-full overflow-hidden mx-2">
-                                                <div className="bg-emerald-500 h-full" style={{width: `${submissions.length ? (r.count / submissions.length * 100) : 0}%`}}></div>
-                                            </div>
-                                            <div className="w-8 text-right text-xs font-bold text-gray-700">{r.count}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 응답 목록 */}
-                    {teacherTab === 'responses' && (
-                        <div className="bg-white rounded-2xl border border-emerald-100 custom-shadow overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-emerald-50 text-emerald-800">
-                                        <tr>
-                                            <th className="p-3 text-left">#</th>
-                                            <th className="p-3 text-left">이름</th>
-                                            <th className="p-3 text-left">주제</th>
-                                            <th className="p-3 text-left">상세</th>
-                                            <th className="p-3 text-left">역할</th>
-                                            <th className="p-3 text-left">시간</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {submissions.length === 0 ? (
-                                            <tr><td colSpan="6" className="p-8 text-center text-gray-400">
-                                                아직 제출된 응답이 없습니다.
-                                            </td></tr>
-                                        ) : submissions.map((s, i) => {
-                                            const topic = TOPICS.find(t => t.id === s.topic);
-                                            const role = ROLES.find(r => r.id === s.role);
-                                            return (
-                                                <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50">
-                                                    <td className="p-3 text-gray-400">{i + 1}</td>
-                                                    <td className="p-3 font-bold">{s.name}</td>
-                                                    <td className="p-3">
-                                                        {topic && <span className={`px-2 py-0.5 rounded-full text-xs font-bold text-white ${topic.badge}`}>{topic.name}</span>}
-                                                    </td>
-                                                    <td className="p-3 max-w-xs text-xs text-gray-600 truncate" title={s.detail}>{s.detail}</td>
-                                                    <td className="p-3 text-xs">{role?.name}</td>
-                                                    <td className="p-3 text-xs text-gray-400">{s.timestamp}</td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 모둠 구성 */}
-                    {teacherTab === 'groups' && (
-                        <div className="space-y-4">
-                            <div className="bg-white rounded-2xl p-4 border border-emerald-100 custom-shadow flex flex-wrap items-center gap-3">
-                                <label className="text-sm font-bold text-gray-700">모둠당 인원 수</label>
-                                <input type="number" min="2" max="8" value={groupSize}
-                                    onChange={(e) => setGroupSize(Number(e.target.value))}
-                                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                                <button onClick={generateSmartGroups}
-                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-lg flex items-center space-x-1.5">
-                                    <i className="fa-solid fa-wand-magic-sparkles"></i>
-                                    <span>지능형 모둠 자동 구성</span>
-                                </button>
-                            </div>
-
-                            {generatedGroups && (
-                                <div className="grid md:grid-cols-2 gap-4">
-                                    {generatedGroups.map(g => (
-                                        <div key={g.id} className="bg-white rounded-2xl p-5 border border-gray-200 custom-shadow">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <div className="flex items-center space-x-2">
-                                                    <span className={`${g.topicBadge} text-white font-bold text-xs px-2 py-1 rounded-full`}>모둠 {g.groupNumber}</span>
-                                                    <span className="text-sm font-bold text-gray-700">{g.topicName}</span>
-                                                </div>
-                                                <span className="text-xs text-gray-500">역할 균형 <b className="text-emerald-600">{g.balanceScore}%</b></span>
-                                            </div>
-                                            <ul className="space-y-1.5">
-                                                {g.members.map(m => {
-                                                    const role = ROLES.find(r => r.id === m.role);
-                                                    return (
-                                                        <li key={m.id} className="flex items-center justify-between text-sm">
-                                                            <span className="font-medium">{m.name}</span>
-                                                            <span className={`text-xs px-2 py-0.5 rounded border ${role?.color}`}>
-                                                                <i className={`fa-solid ${role?.icon} mr-1`}></i>{role?.name}
-                                                            </span>
-                                                        </li>
-                                                    );
-                                                })}
-                                            </ul>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* 비밀번호 변경 모달 */}
-                    {showPwModal && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
-                                <h3 className="font-bold text-lg mb-3">교사 비밀번호 변경</h3>
-                                <form onSubmit={handleChangePassword} className="space-y-3">
-                                    <input type="text" value={newPwInput}
-                                        onChange={(e) => setNewPwInput(e.target.value)}
-                                        placeholder="새 비밀번호"
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl" />
-                                    <div className="flex gap-2">
-                                        <button type="button" onClick={() => setShowPwModal(false)}
-                                            className="flex-1 py-2.5 bg-gray-200 hover:bg-gray-300 rounded-xl font-bold text-sm">취소</button>
-                                        <button type="submit"
-                                            className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm">저장</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    )}
                 </div>
-            );
+
+                <div class="lg:col-span-7 space-y-4">
+                    <div class="flex items-center justify-between px-1">
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <span>다른 모둠 아이디어 둘러보고 펀딩하기</span>
+                            <span id="other-groups-count" class="text-xs bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded-full">0개</span>
+                        </h2>
+                    </div>
+                    <div id="funding-feed-container" class="space-y-5"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TEACHER VIEW -->
+        <div id="view-teacher" class="hidden space-y-6">
+            <div class="bg-slate-900 text-white rounded-3xl p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-black flex items-center gap-2 text-amber-400">
+                        <i class="fa-solid fa-chart-line"></i> 교사 대시보드 및 실시간 현황
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">
+                        <span class="sync-dot align-middle mr-1"></span>
+                        Firestore 실시간 동기화 - 모든 태블릿의 활동을 바로 확인합니다.
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="openWinnerModal()" class="bg-amber-400 hover:bg-amber-500 text-amber-950 px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow">
+                        <i class="fa-solid fa-trophy text-base"></i> 펀딩 결과 시상식 🎉
+                    </button>
+                    <button onclick="loadSampleData()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> 샘플 데이터 채우기
+                    </button>
+                    <button onclick="confirmResetData()" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1">
+                        <i class="fa-solid fa-trash-can"></i> 데이터 리셋
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                    <div><div class="text-xs text-slate-500 font-medium">총 누적 펀딩 금액</div><div id="stat-total-funded" class="text-xl font-black text-slate-800">0원</div></div>
+                </div>
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-receipt"></i></div>
+                    <div><div class="text-xs text-slate-500 font-medium">총 투자 참여 건수</div><div id="stat-total-transactions" class="text-xl font-black text-slate-800">0건</div></div>
+                </div>
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-crown"></i></div>
+                    <div><div class="text-xs text-slate-500 font-medium">펀딩 1위 모둠</div><div id="stat-top-group" class="text-xl font-black text-slate-800 truncate max-w-[150px]">-</div></div>
+                </div>
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-users"></i></div>
+                    <div><div class="text-xs text-slate-500 font-medium">참여 모둠 수</div><div id="stat-total-groups" class="text-xl font-black text-slate-800">0개 모둠</div></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div class="lg:col-span-8 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-chart-simple text-amber-500"></i><span>모둠별 모금액 현황</span></h3>
+                        </div>
+                        <div class="relative h-64"><canvas id="fundingBarChart"></canvas></div>
+                    </div>
+                    <div class="pt-6 border-t border-slate-100">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-bullseye text-rose-500"></i><span>모둠별 목표 도달도 (달성률 %)</span></h3>
+                            <span class="text-xs text-slate-400 font-medium">* 목표 예산 대비 현재 펀딩 달성률</span>
+                        </div>
+                        <div id="group-progress-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3"><i class="fa-solid fa-sliders text-blue-500"></i><span>수업 환경 설정</span></h3>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">교사 모드 비밀번호 변경</label>
+                        <div class="flex gap-2">
+                            <input type="password" id="setting-teacher-password" placeholder="새 비밀번호 입력" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                            <button onclick="updateTeacherPassword()" class="bg-slate-800 text-white text-xs px-3 py-2 rounded-xl font-bold hover:bg-slate-700 transition whitespace-nowrap">변경</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">모둠별 기본 제공 자본금 설정</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="setting-initial-budget" value="1000000" step="100000" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800">
+                            <button onclick="updateInitialBudget()" class="bg-slate-800 text-white text-xs px-3 py-2 rounded-xl font-bold hover:bg-slate-700 transition">적용</button>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-1">* 모든 모둠 자본금이 설정한 원금으로 재생성됩니다.</p>
+                    </div>
+                    <div class="pt-2">
+                        <label class="block text-xs font-bold text-slate-600 mb-1">모둠 개수 관리</label>
+                        <div class="flex items-center gap-2">
+                            <button onclick="changeGroupCount(-1)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 w-10 h-10 rounded-xl font-bold flex items-center justify-center">-</button>
+                            <span id="setting-group-count-display" class="font-black text-slate-800 px-3">6개 모둠</span>
+                            <button onclick="changeGroupCount(1)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 w-10 h-10 rounded-xl font-bold flex items-center justify-center">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-comments text-emerald-500"></i><span>실시간 펀딩 내역 및 응원한마디 목록</span></h3>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar max-h-96">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="text-xs text-slate-500 bg-slate-50 uppercase font-bold sticky top-0">
+                            <tr>
+                                <th class="px-4 py-3 rounded-l-xl">시간</th>
+                                <th class="px-4 py-3">보낸 모둠 (투자자)</th>
+                                <th class="px-4 py-3">받은 모둠 (프로젝트)</th>
+                                <th class="px-4 py-3">투자 금액</th>
+                                <th class="px-4 py-3 rounded-r-xl">응원 메시지 / 이유</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transaction-table-body" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Teacher Password Modal -->
+    <div id="modal-teacher-password" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-amber-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-lock text-amber-500"></i> 교사 인증</h3>
+                <button onclick="closeTeacherPasswordModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-xs text-slate-600">교사 전용 대시보드 접근을 위해 비밀번호를 입력해주세요. (기본: 1234)</p>
+            <form onsubmit="event.preventDefault(); verifyTeacherPassword();" class="space-y-3">
+                <input type="password" id="teacher-password-input" placeholder="비밀번호 입력" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400">
+                <div id="password-error-msg" class="text-xs text-rose-500 font-bold hidden">비밀번호가 올바르지 않습니다.</div>
+                <button type="submit" class="w-full bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold py-2.5 rounded-xl text-sm transition">입장하기</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Funding Modal -->
+    <div id="modal-fund" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-amber-200 transform transition-all scale-100 space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <span>🌱 펀딩하기</span>
+                    <span id="modal-target-group-badge" class="bg-amber-100 text-amber-900 text-xs px-2.5 py-0.5 rounded-full font-bold">2모둠</span>
+                </h3>
+                <button onclick="closeFundModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div>
+                <p id="modal-target-title" class="font-bold text-slate-800 text-base mb-1"></p>
+                <p id="modal-target-problem" class="text-sm font-medium text-slate-700 bg-amber-50/80 p-2.5 rounded-xl border border-amber-200/60 leading-relaxed"></p>
+            </div>
+            <div class="space-y-3 bg-amber-50/70 p-4 rounded-2xl border border-amber-200/80">
+                <div class="flex justify-between items-center text-xs font-bold text-amber-950">
+                    <span>투자 금액 설정</span>
+                    <span>내 모둠 잔액: <span id="modal-my-balance" class="text-amber-700">0원</span></span>
+                </div>
+                <input type="range" id="modal-fund-range" min="10000" max="1000000" step="10000" value="100000" oninput="syncFundAmount(this.value)" class="w-full accent-amber-500 cursor-pointer">
+                <div class="flex items-center gap-2">
+                    <input type="number" id="modal-fund-amount" step="10000" oninput="syncFundRange(this.value)" class="w-full bg-white border border-amber-300 rounded-xl px-3 py-2 font-black text-amber-900 text-lg text-right focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    <span class="font-bold text-amber-900 text-sm">원</span>
+                </div>
+                <div class="grid grid-cols-4 gap-1.5 pt-1">
+                    <button onclick="addFundAmount(50000)" class="bg-white border border-amber-200 hover:bg-amber-100 text-amber-900 text-xs py-1.5 rounded-lg font-bold">+5만</button>
+                    <button onclick="addFundAmount(100000)" class="bg-white border border-amber-200 hover:bg-amber-100 text-amber-900 text-xs py-1.5 rounded-lg font-bold">+10만</button>
+                    <button onclick="addFundAmount(300000)" class="bg-white border border-amber-200 hover:bg-amber-100 text-amber-900 text-xs py-1.5 rounded-lg font-bold">+30만</button>
+                    <button onclick="setFundMax()" class="bg-amber-500 text-white text-xs py-1.5 rounded-lg font-bold hover:bg-amber-600">전액</button>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">응원 한마디 / 선택한 이유 💬</label>
+                <textarea id="modal-fund-comment" rows="2" placeholder="이 해결 방안에 투자를 결심한 이유나 응원의 메시지를 적어주세요!" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs focus:bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none transition"></textarea>
+            </div>
+            <button id="btn-submit-funding" onclick="submitFunding()" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-3 rounded-2xl shadow-md text-sm transition transform active:scale-95">
+                🎉 지금 펀딩 완료하기
+            </button>
+        </div>
+    </div>
+
+    <!-- Winner Modal -->
+    <div id="modal-winner" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border-4 border-amber-400 text-center space-y-6 relative overflow-hidden">
+            <div class="absolute -right-10 -top-10 text-8xl opacity-10">🏆</div>
+            <div class="inline-block bg-amber-100 text-amber-900 font-black text-xs px-3 py-1 rounded-full uppercase tracking-wider">해남 사회 수업 시상식 🎉</div>
+            <div id="suspense-container" class="hidden py-8 space-y-4">
+                <div class="text-6xl animate-bounce">🥁</div>
+                <div id="countdown-timer" class="text-6xl font-black text-amber-500 tracking-widest animate-ping">3</div>
+                <p class="text-lg font-bold text-slate-700 animate-pulse">두구두구두구... 과연 주인공은?!</p>
+            </div>
+            <div id="winner-content-box" class="space-y-6">
+                <div>
+                    <h3 id="ceremony-rank-title" class="text-3xl font-black text-slate-900">🥉 3위 발표!</h3>
+                    <p class="text-xs text-slate-500 mt-1">우리 동네를 위해 멋진 해결책을 제시한 모둠입니다.</p>
+                </div>
+                <div class="bg-amber-50 rounded-2xl p-6 border-2 border-amber-300 space-y-3" id="winner-card-box">
+                    <div class="inline-block bg-amber-400 text-amber-950 font-black text-base px-4 py-1 rounded-full shadow-sm" id="winner-badge">3모둠</div>
+                    <h4 id="winner-title" class="text-xl font-extrabold text-amber-950">프로젝트 제목</h4>
+                    <p id="winner-amount" class="text-2xl font-black text-amber-600">0원 달성!</p>
+                    <p id="winner-effect" class="text-xs text-slate-600 italic mt-2"></p>
+                </div>
+            </div>
+            <div class="flex gap-2" id="ceremony-btn-group">
+                <button id="btn-next-rank" onclick="triggerSuspenseAndNext()" class="w-full bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-amber-950 font-black py-3.5 rounded-2xl transition shadow-md text-base flex items-center justify-center gap-2">
+                    <span>등수 발표하기 🥁</span><i class="fa-solid fa-drum"></i>
+                </button>
+                <button id="btn-close-winner" onclick="closeWinnerModal()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-black py-3.5 rounded-2xl transition hidden">시상식 종료하기</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== Firestore 참조 =====
+        const db = window.db;
+        const COL_GROUPS = db.collection('funding_groups');
+        const COL_TX = db.collection('funding_transactions');
+        const DOC_SETTINGS = db.collection('funding_settings').doc('config');
+
+        // ===== 로컬 상태 (실시간 리스너로 채워짐) =====
+        const appState = {
+            initialBudgetPerGroup: 1000000,
+            groupCount: 6,
+            teacherPassword: '1234',
+            currentMyGroup: localStorage.getItem('haenam_my_group') || '1모둠',
+            groups: {},         // {groupKey: {...}}
+            transactions: [],   // [{...}]
+            settingsLoaded: false,
+            groupsLoaded: false,
+            isSubmittingFunding: false
+        };
+
+        let currentFundingTargetGroup = null;
+        let chartInstance = null;
+
+        // ===== 기본 모둠 데이터 =====
+        const DEFAULT_GROUPS = {
+            '1모둠': { groupName:'1모둠', title:'해남 무단투기 없는 깨끗한 마을 가꾸기', problem:'해남 마을 곳곳의 골목길과 농로에 쓰레기 무단투기가 발생하여 악취와 환경 오염이 심해요.', solution:'스마트 쓰레기 수거함 설치와 모둠별 자율 환경 순찰대를 운영하여 깨끗한 동네를 만듭니다.', goal:1000000, raised:0, icon:'♻️', effect:'마을이 더 깨끗해지고 주민들이 쾌적한 환경에서 생활할 수 있습니다.' },
+            '2모둠': { groupName:'2모둠', title:'스쿨존 어린이 보행 안전 옐로카펫', problem:'학교 앞 횡단보도가 어둡고 운전자 시야에 아이들이 잘 보이지 않아 위험해요.', solution:'횡단보도 대기선에 눈에 잘 띄는 옐로카펫과 햇빛 차단 그늘막을 추가로 설치해요.', goal:1000000, raised:0, icon:'🚶', effect:'어린이 교통사고 위험이 크게 줄어들고 안심하고 등하교할 수 있습니다.' },
+            '3모둠': { groupName:'3모둠', title:'해남 어르신들을 위한 마을 쉼터 모정 정비', problem:'동네 모정(정자)이 오래되어 낡고 의자가 부족해서 어르신들이 쉬시기 불편해요.', solution:'편안한 벤치를 추가하고 모정에 나눔 문고와 안전 등받이를 설치합니다.', goal:1000000, raised:0, icon:'👵', effect:'어르신들의 따뜻한 소통 공간이 되고 마을 공동체가 유대감을 쌓을 수 있습니다.' },
+            '4모둠': { groupName:'4모둠', title:'해남 우리 동네 작은 나눔 어린이 도서관', problem:'마을 놀이터 근처에 책을 읽거나 친구들과 나눔할 수 있는 문화 공간이 부족해요.', solution:'공원에 작은 야외 나눔 책방을 만들고, 모둠원들이 동화책 나눔 캠페인을 벌입니다.', goal:1000000, raised:0, icon:'🎨', effect:'아이들이 언제든 즐겁게 책을 읽고 다 함께 소통하는 건강한 독서 습관이 생깁니다.' },
+            '5모둠': { groupName:'5모둠', title:'동네 유기동물 보호 및 공원 배변봉투함', problem:'공원에 반려견 배변 봉투함이 없어서 산책로가 더러워지고 들개 소음이 있어요.', solution:'친환경 배변봉투함을 설치하고 올바른 반려동물 에티켓 안내판을 세웁니다.', goal:1000000, raised:0, icon:'🐾', effect:'공원을 찾는 이웃들이 상쾌하게 산책하고 성숙한 반려동물 문화가 정착됩니다.' },
+            '6모둠': { groupName:'6모둠', title:'우리 마을 공원 생태 정원 조성', problem:'동네 공원 일부 공간이 풀만 무성하게 방치되어 칙칙해 보여요.', solution:'해남 계절 꽃과 나비가 좋아하는 식물을 심어 학생들이 직접 가꾸는 미니 생태 정원을 만들어요.', goal:1000000, raised:0, icon:'🌳', effect:'자연 친화적 공간이 생겨나 아름다운 해남 마을을 만들 수 있습니다.' }
+        };
+
+        // ===== 초기화 =====
+        window.onload = async function() {
+            await ensureInitialSetup();
+            subscribeSettings();
+            subscribeGroups();
+            subscribeTransactions();
+            initChart();
+        };
+
+        // 최초 Firestore에 settings / groups가 없다면 생성
+        async function ensureInitialSetup() {
+            try {
+                const settingsSnap = await DOC_SETTINGS.get();
+                if (!settingsSnap.exists) {
+                    await DOC_SETTINGS.set({
+                        teacherPassword: '1234',
+                        initialBudgetPerGroup: 1000000,
+                        groupCount: 6
+                    });
+                }
+
+                const groupsSnap = await COL_GROUPS.limit(1).get();
+                if (groupsSnap.empty) {
+                    const batch = db.batch();
+                    Object.keys(DEFAULT_GROUPS).forEach(key => {
+                        const ref = COL_GROUPS.doc(key);
+                        batch.set(ref, { ...DEFAULT_GROUPS[key], budgetLeft: 1000000 });
+                    });
+                    await batch.commit();
+                }
+            } catch (err) {
+                console.error('초기 세팅 오류:', err);
+            }
         }
 
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+        // ===== 실시간 구독 =====
+        function subscribeSettings() {
+            DOC_SETTINGS.onSnapshot(snap => {
+                if (!snap.exists) return;
+                const d = snap.data();
+                appState.teacherPassword = d.teacherPassword || '1234';
+                appState.initialBudgetPerGroup = d.initialBudgetPerGroup || 1000000;
+                appState.groupCount = d.groupCount || 6;
+                appState.settingsLoaded = true;
+                document.getElementById('setting-group-count-display').innerText = `${appState.groupCount}개 모둠`;
+                document.getElementById('setting-initial-budget').value = appState.initialBudgetPerGroup;
+                populateGroupSelector();
+            }, err => console.error('settings 구독 오류:', err));
+        }
+
+        function subscribeGroups() {
+            COL_GROUPS.onSnapshot(snap => {
+                const map = {};
+                snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
+                appState.groups = map;
+                appState.groupsLoaded = true;
+                populateGroupSelector();
+                loadMyProposalToForm();
+                updateWalletDisplay();
+                renderFundingFeed();
+                renderTeacherDashboard();
+                updateChart();
+            }, err => console.error('groups 구독 오류:', err));
+        }
+
+        function subscribeTransactions() {
+            COL_TX.orderBy('createdAt', 'desc').onSnapshot(snap => {
+                appState.transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderFundingFeed();
+                renderTeacherDashboard();
+            }, err => console.error('transactions 구독 오류:', err));
+        }
+
+        // ===== UI 렌더링 =====
+        function populateGroupSelector() {
+            const select = document.getElementById('my-group-select');
+            const prev = appState.currentMyGroup;
+            select.innerHTML = '';
+            for (let i = 1; i <= appState.groupCount; i++) {
+                const key = `${i}모둠`;
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = key;
+                if (key === prev) opt.selected = true;
+                select.appendChild(opt);
+            }
+            if (!appState.groups[prev] && appState.groupCount > 0) {
+                appState.currentMyGroup = '1모둠';
+                localStorage.setItem('haenam_my_group', '1모둠');
+                select.value = '1모둠';
+            }
+            document.getElementById('my-group-badge').innerText = appState.currentMyGroup;
+        }
+
+        function changeMyGroup(groupKey) {
+            appState.currentMyGroup = groupKey;
+            localStorage.setItem('haenam_my_group', groupKey);
+            document.getElementById('my-group-badge').innerText = groupKey;
+            updateWalletDisplay();
+            loadMyProposalToForm();
+            renderFundingFeed();
+        }
+
+        function updateWalletDisplay() {
+            const g = appState.groups[appState.currentMyGroup];
+            const remaining = g ? (g.budgetLeft || 0) : 0;
+            document.getElementById('my-remaining-budget').innerText = remaining.toLocaleString() + '원';
+        }
+
+        function loadMyProposalToForm() {
+            const g = appState.groups[appState.currentMyGroup];
+            if (!g) return;
+            // 사용자가 입력 중일 수 있으므로 비어있을 때만 혹은 아예 덮어쓰기 - 수업 특성상 덮어쓰기
+            const activeEl = document.activeElement;
+            if (activeEl && ['prop-title','prop-problem','prop-solution','prop-goal','prop-icon','prop-effect'].includes(activeEl.id)) {
+                return; // 입력 중이면 덮어쓰지 않음
+            }
+            document.getElementById('prop-title').value = g.title || '';
+            document.getElementById('prop-problem').value = g.problem || '';
+            document.getElementById('prop-solution').value = g.solution || '';
+            document.getElementById('prop-goal').value = g.goal || 1000000;
+            document.getElementById('prop-icon').value = g.icon || '🌳';
+            document.getElementById('prop-effect').value = g.effect || '';
+        }
+
+        async function saveMyProposal() {
+            const groupKey = appState.currentMyGroup;
+            const title = document.getElementById('prop-title').value.trim();
+            const problem = document.getElementById('prop-problem').value.trim();
+            const solution = document.getElementById('prop-solution').value.trim();
+            const goal = parseInt(document.getElementById('prop-goal').value) || 1000000;
+            const icon = document.getElementById('prop-icon').value;
+            const effect = document.getElementById('prop-effect').value.trim();
+
+            if (!title || !problem || !solution) {
+                alert('제목, 지역 문제, 해결 방안을 모두 입력해주세요!');
+                return;
+            }
+
+            try {
+                await COL_GROUPS.doc(groupKey).set({
+                    groupName: groupKey,
+                    title, problem, solution, goal, icon, effect
+                }, { merge: true });
+                alert(`🎉 [${groupKey}] 의 해결 방안이 Firestore에 저장되었습니다!`);
+            } catch (err) {
+                console.error(err);
+                alert('저장 중 오류: ' + err.message);
+            }
+        }
+
+        function renderFundingFeed() {
+            const container = document.getElementById('funding-feed-container');
+            if (!container) return;
+            container.innerHTML = '';
+            const myGroup = appState.currentMyGroup;
+            let otherCount = 0;
+
+            const sortedKeys = Object.keys(appState.groups)
+                .filter(k => {
+                    const n = parseInt(k);
+                    return !isNaN(n) && n <= appState.groupCount;
+                })
+                .sort((a,b) => parseInt(a) - parseInt(b));
+
+            sortedKeys.forEach(key => {
+                if (key === myGroup) return;
+                otherCount++;
+                const g = appState.groups[key];
+                const groupComments = appState.transactions.filter(t => t.toGroup === key && t.comment);
+                const latestComment = groupComments[0]; // transactions는 desc 정렬
+
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-3xl p-6 shadow-sm border border-slate-200 hover:border-amber-300 transition duration-200 space-y-4";
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-2xl shadow-inner">${g.icon || '💡'}</div>
+                            <div>
+                                <span class="bg-amber-100 text-amber-900 text-xs font-black px-2.5 py-1 rounded-full">${g.groupName}</span>
+                                <h3 class="font-black text-slate-900 text-xl leading-snug mt-1">${g.title || '등록된 사업이 없습니다.'}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-3 bg-amber-50/50 p-4 sm:p-5 rounded-2xl border border-amber-200/80">
+                        <div>
+                            <span class="font-extrabold text-rose-600 text-sm sm:text-base flex items-center gap-1">🚨 우리가 찾은 지역 문제</span>
+                            <p class="text-slate-800 font-bold text-base sm:text-lg mt-1 leading-relaxed">${g.problem || '내용 미작성'}</p>
+                        </div>
+                        <div class="pt-2 border-t border-amber-200/60">
+                            <span class="font-extrabold text-emerald-600 text-sm sm:text-base flex items-center gap-1">💡 합리적인 해결 방안</span>
+                            <p class="text-slate-900 font-black text-base sm:text-xl mt-1 leading-relaxed">${g.solution || '내용 미작성'}</p>
+                        </div>
+                        ${g.effect ? `
+                        <div class="pt-2 border-t border-amber-200/60 flex items-start gap-1.5 text-sm sm:text-base">
+                            <span class="font-extrabold text-amber-800 whitespace-nowrap">✨ 기대 효과:</span>
+                            <span class="font-bold text-slate-700">${g.effect}</span>
+                        </div>` : ''}
+                    </div>
+                    <div class="bg-slate-100/80 p-3 rounded-2xl flex items-center justify-between text-xs text-slate-600 border border-slate-200/60">
+                        <span class="font-bold text-slate-700 flex items-center gap-1.5">
+                            <i class="fa-solid fa-lock text-amber-500"></i>
+                            <span>목표 예산: <strong class="text-amber-800 font-black">${(g.goal || 1000000).toLocaleString()}원</strong></span>
+                        </span>
+                        <span class="text-slate-400 font-medium text-[11px]">🔒 실시간 펀딩 달성율은 비밀입니다!</span>
+                    </div>
+                    <div class="pt-2 flex items-center justify-between border-t border-slate-100">
+                        <div class="text-xs text-slate-500 flex items-center gap-1">
+                            <i class="fa-solid fa-heart text-rose-400"></i>
+                            <span>응원 <strong>${groupComments.length}</strong>개</span>
+                        </div>
+                        <button onclick="openFundModal('${g.groupName}')" class="bg-amber-400 hover:bg-amber-500 text-amber-950 font-black px-5 py-2.5 rounded-2xl text-xs sm:text-sm transition shadow-sm hover:shadow flex items-center gap-1.5">
+                            <i class="fa-solid fa-coins"></i> 펀딩 투자하기
+                        </button>
+                    </div>
+                    ${latestComment ? `
+                    <div class="bg-amber-50/80 rounded-xl p-2.5 text-xs text-amber-950 border border-amber-200/60 flex items-start gap-2">
+                        <span class="font-bold whitespace-nowrap">💬 [${latestComment.fromGroup}]:</span>
+                        <span class="italic truncate">${latestComment.comment}</span>
+                    </div>` : ''}
+                `;
+                container.appendChild(card);
+            });
+
+            document.getElementById('other-groups-count').innerText = `${otherCount}개`;
+        }
+
+        // ===== 교사 인증 =====
+        function requestTeacherAccess() {
+            const pwdInput = document.getElementById('teacher-password-input');
+            const errorMsg = document.getElementById('password-error-msg');
+            pwdInput.value = '';
+            errorMsg.classList.add('hidden');
+            document.getElementById('modal-teacher-password').classList.remove('hidden');
+            setTimeout(() => pwdInput.focus(), 100);
+        }
+        function closeTeacherPasswordModal() {
+            document.getElementById('modal-teacher-password').classList.add('hidden');
+        }
+        function verifyTeacherPassword() {
+            const pwdInput = document.getElementById('teacher-password-input');
+            const errorMsg = document.getElementById('password-error-msg');
+            if (pwdInput.value === appState.teacherPassword) {
+                closeTeacherPasswordModal();
+                switchTab('teacher');
+            } else {
+                errorMsg.classList.remove('hidden');
+                pwdInput.value = '';
+                pwdInput.focus();
+            }
+        }
+        async function updateTeacherPassword() {
+            const newPwd = document.getElementById('setting-teacher-password').value.trim();
+            if (!newPwd) { alert('변경할 비밀번호를 입력해주세요.'); return; }
+            try {
+                await DOC_SETTINGS.set({ teacherPassword: newPwd }, { merge: true });
+                document.getElementById('setting-teacher-password').value = '';
+                alert('🔒 교사 모드 비밀번호가 성공적으로 변경되었습니다!');
+            } catch (err) {
+                alert('변경 실패: ' + err.message);
+            }
+        }
+
+        function switchTab(tab) {
+            const studentView = document.getElementById('view-student');
+            const teacherView = document.getElementById('view-teacher');
+            const btnStudent = document.getElementById('btn-tab-student');
+            const btnTeacher = document.getElementById('btn-tab-teacher');
+            if (tab === 'student') {
+                studentView.classList.remove('hidden');
+                teacherView.classList.add('hidden');
+                btnStudent.className = "px-3 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center gap-1.5 bg-amber-400 text-amber-950 shadow-sm";
+                btnTeacher.className = "px-3 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:text-slate-900";
+                renderFundingFeed();
+            } else {
+                studentView.classList.add('hidden');
+                teacherView.classList.remove('hidden');
+                btnTeacher.className = "px-3 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center gap-1.5 bg-amber-400 text-amber-950 shadow-sm";
+                btnStudent.className = "px-3 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:text-slate-900";
+                renderTeacherDashboard();
+                updateChart();
+            }
+        }
+
+        // ===== 펀딩 모달 =====
+        function openFundModal(targetGroupKey) {
+            if (targetGroupKey === appState.currentMyGroup) {
+                alert('❌ 자신의 모둠에는 펀딩할 수 없습니다! 다른 모둠의 아이디어를 선택해주세요.');
+                return;
+            }
+            const targetG = appState.groups[targetGroupKey];
+            const myG = appState.groups[appState.currentMyGroup];
+            if (!myG || (myG.budgetLeft || 0) <= 0) {
+                alert('⚠️ 우리 모둠의 남은 자본금이 없습니다!');
+                return;
+            }
+            currentFundingTargetGroup = targetGroupKey;
+            document.getElementById('modal-target-group-badge').innerText = targetGroupKey;
+            document.getElementById('modal-target-title').innerText = targetG.title || '지역 문제 해결 프로젝트';
+            document.getElementById('modal-target-problem').innerText = targetG.problem || '';
+            document.getElementById('modal-my-balance').innerText = (myG.budgetLeft || 0).toLocaleString() + '원';
+
+            const rangeInput = document.getElementById('modal-fund-range');
+            const amountInput = document.getElementById('modal-fund-amount');
+            const maxAvail = myG.budgetLeft || 0;
+            const defaultAmt = Math.min(100000, maxAvail);
+            rangeInput.max = maxAvail;
+            rangeInput.value = defaultAmt;
+            amountInput.value = defaultAmt;
+            document.getElementById('modal-fund-comment').value = '';
+            document.getElementById('modal-fund').classList.remove('hidden');
+        }
+        function closeFundModal() {
+            document.getElementById('modal-fund').classList.add('hidden');
+            currentFundingTargetGroup = null;
+        }
+        function syncFundAmount(val) { document.getElementById('modal-fund-amount').value = val; }
+        function syncFundRange(val) {
+            const myG = appState.groups[appState.currentMyGroup];
+            let num = parseInt(val) || 0;
+            if (num > (myG.budgetLeft || 0)) num = myG.budgetLeft || 0;
+            document.getElementById('modal-fund-range').value = num;
+        }
+        function addFundAmount(add) {
+            const myG = appState.groups[appState.currentMyGroup];
+            const amountInput = document.getElementById('modal-fund-amount');
+            let current = parseInt(amountInput.value) || 0;
+            let next = Math.min(current + add, myG.budgetLeft || 0);
+            amountInput.value = next;
+            document.getElementById('modal-fund-range').value = next;
+        }
+        function setFundMax() {
+            const myG = appState.groups[appState.currentMyGroup];
+            const max = myG.budgetLeft || 0;
+            document.getElementById('modal-fund-amount').value = max;
+            document.getElementById('modal-fund-range').value = max;
+        }
+
+        // ===== 펀딩 제출: Firestore runTransaction으로 원자적 처리 =====
+        async function submitFunding() {
+            if (appState.isSubmittingFunding) return;
+            const myGroupKey = appState.currentMyGroup;
+            const targetGroupKey = currentFundingTargetGroup;
+            const amount = parseInt(document.getElementById('modal-fund-amount').value) || 0;
+            const comment = document.getElementById('modal-fund-comment').value.trim();
+
+            if (amount <= 0) { alert('1원 이상의 투자 금액을 입력해 주세요.'); return; }
+
+            const btn = document.getElementById('btn-submit-funding');
+            appState.isSubmittingFunding = true;
+            btn.disabled = true;
+            btn.innerText = '펀딩 처리 중...';
+
+            try {
+                const myRef = COL_GROUPS.doc(myGroupKey);
+                const targetRef = COL_GROUPS.doc(targetGroupKey);
+                const txRef = COL_TX.doc();
+
+                await db.runTransaction(async (tx) => {
+                    const mySnap = await tx.get(myRef);
+                    const targetSnap = await tx.get(targetRef);
+                    if (!mySnap.exists || !targetSnap.exists) throw new Error('모둠 데이터가 존재하지 않습니다.');
+
+                    const myData = mySnap.data();
+                    const targetData = targetSnap.data();
+                    const currentBudget = myData.budgetLeft || 0;
+                    if (currentBudget < amount) throw new Error('잔액 부족! (다른 모둠이 먼저 투자했을 수 있어요)');
+
+                    tx.update(myRef, { budgetLeft: currentBudget - amount });
+                    tx.update(targetRef, { raised: (targetData.raised || 0) + amount });
+                    tx.set(txRef, {
+                        timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                        fromGroup: myGroupKey,
+                        toGroup: targetGroupKey,
+                        amount, comment,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+
+                confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
+                closeFundModal();
+                alert(`🎉 [${targetGroupKey}] 프로젝트에 ${amount.toLocaleString()}원을 펀딩했습니다!`);
+            } catch (err) {
+                console.error(err);
+                alert('펀딩 실패: ' + err.message);
+            } finally {
+                appState.isSubmittingFunding = false;
+                btn.disabled = false;
+                btn.innerHTML = '🎉 지금 펀딩 완료하기';
+            }
+        }
+
+        // ===== 교사 대시보드 =====
+        function renderTeacherDashboard() {
+            let totalFunded = 0, topGroup = '-', maxRaised = -1;
+            Object.keys(appState.groups).forEach(key => {
+                const g = appState.groups[key];
+                totalFunded += (g.raised || 0);
+                if ((g.raised || 0) > maxRaised && (g.raised || 0) > 0) {
+                    maxRaised = g.raised;
+                    topGroup = `${key} (${g.title ? g.title.substring(0, 10) + '...' : ''})`;
+                }
+            });
+            const totalFundedEl = document.getElementById('stat-total-funded');
+            if (!totalFundedEl) return;
+            totalFundedEl.innerText = totalFunded.toLocaleString() + '원';
+            document.getElementById('stat-total-transactions').innerText = appState.transactions.length + '건';
+            document.getElementById('stat-top-group').innerText = topGroup;
+            document.getElementById('stat-total-groups').innerText = `${appState.groupCount}개 모둠`;
+
+            renderGroupProgressList();
+
+            const tbody = document.getElementById('transaction-table-body');
+            tbody.innerHTML = '';
+            if (appState.transactions.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400 italic">아직 진행된 펀딩 내역이 없습니다. 학생들의 투자를 기다려주세요!</td></tr>`;
+                return;
+            }
+            appState.transactions.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/80 transition";
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-xs text-slate-400">${t.timestamp || ''}</td>
+                    <td class="px-4 py-3 font-bold text-amber-900">${t.fromGroup}</td>
+                    <td class="px-4 py-3 font-bold text-blue-900">${t.toGroup}</td>
+                    <td class="px-4 py-3 font-black text-emerald-600">${(t.amount||0).toLocaleString()}원</td>
+                    <td class="px-4 py-3 text-xs text-slate-700">${t.comment ? `"${t.comment}"` : '<span class="text-slate-300">-</span>'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderGroupProgressList() {
+            const container = document.getElementById('group-progress-list');
+            if (!container) return;
+            container.innerHTML = '';
+            const keys = Object.keys(appState.groups)
+                .filter(k => { const n=parseInt(k); return !isNaN(n) && n <= appState.groupCount; })
+                .sort((a,b) => parseInt(a) - parseInt(b));
+            keys.forEach(key => {
+                const g = appState.groups[key];
+                const goal = g.goal || 1000000;
+                const raised = g.raised || 0;
+                const percent = Math.min(Math.round((raised / goal) * 100), 999);
+                const item = document.createElement('div');
+                item.className = "bg-slate-50 border border-slate-200 p-3.5 rounded-2xl space-y-2";
+                item.innerHTML = `
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="font-extrabold text-slate-800 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full ${percent >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
+                            <span>${key}</span>
+                            <span class="text-slate-400 font-normal">(${g.title ? g.title.substring(0, 8) + '...' : ''})</span>
+                        </span>
+                        <span class="font-black text-amber-900 text-sm">${percent}%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500" style="width: ${Math.min(percent,100)}%"></div>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] text-slate-500 font-medium pt-0.5">
+                        <span>모금: <strong class="text-slate-700 font-bold">${raised.toLocaleString()}원</strong></span>
+                        <span>목표: <strong class="text-slate-700 font-bold">${goal.toLocaleString()}원</strong></span>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // ===== Chart =====
+        function initChart() {
+            const el = document.getElementById('fundingBarChart');
+            if (!el) return;
+            const ctx = el.getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: getChartData(),
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { callback: v => (v/10000) + '만원' } }
+                    }
+                }
+            });
+        }
+        function getChartData() {
+            const labels = [], raisedData = [];
+            const keys = Object.keys(appState.groups)
+                .filter(k => { const n=parseInt(k); return !isNaN(n) && n <= appState.groupCount; })
+                .sort((a,b) => parseInt(a) - parseInt(b));
+            keys.forEach(key => { labels.push(key); raisedData.push(appState.groups[key].raised || 0); });
+            return { labels, datasets: [{ label:'모금된 금액 (원)', data: raisedData, backgroundColor:'#f59e0b', borderRadius: 8 }] };
+        }
+        function updateChart() {
+            if (!chartInstance) return;
+            chartInstance.data = getChartData();
+            chartInstance.update();
+        }
+
+        // ===== 설정 =====
+        async function updateInitialBudget() {
+            const val = parseInt(document.getElementById('setting-initial-budget').value) || 1000000;
+            try {
+                await DOC_SETTINGS.set({ initialBudgetPerGroup: val }, { merge: true });
+                // 모든 모둠 자본금 초기화
+                const snap = await COL_GROUPS.get();
+                const batch = db.batch();
+                snap.docs.forEach(d => batch.update(d.ref, { budgetLeft: val }));
+                await batch.commit();
+                alert(`모둠별 초기 자본금이 ${val.toLocaleString()}원으로 변경되었습니다. (모든 모둠 잔액 재설정)`);
+            } catch (err) {
+                alert('변경 실패: ' + err.message);
+            }
+        }
+
+        async function changeGroupCount(delta) {
+            let nextCount = appState.groupCount + delta;
+            if (nextCount < 2 || nextCount > 10) {
+                alert('모둠 수는 2개 이상 10개 이하로 설정할 수 있습니다.');
+                return;
+            }
+            try {
+                await DOC_SETTINGS.set({ groupCount: nextCount }, { merge: true });
+                // 부족한 모둠 문서 생성
+                const batch = db.batch();
+                for (let i = 1; i <= nextCount; i++) {
+                    const key = `${i}모둠`;
+                    if (!appState.groups[key]) {
+                        const def = DEFAULT_GROUPS[key] || {
+                            groupName: key,
+                            title: `${key} 해결 방안`,
+                            problem: '우리 동네의 문제를 입력하세요.',
+                            solution: '해결 방안을 입력하세요.',
+                            goal: 1000000, raised: 0, icon: '💡', effect: ''
+                        };
+                        batch.set(COL_GROUPS.doc(key), { ...def, budgetLeft: appState.initialBudgetPerGroup });
+                    }
+                }
+                await batch.commit();
+            } catch (err) {
+                alert('변경 실패: ' + err.message);
+            }
+        }
+
+        async function loadSampleData() {
+            if (!confirm('샘플 데이터로 Firestore를 덮어씁니다. 계속할까요?')) return;
+            try {
+                // 모둠 기본값 복원
+                const batch1 = db.batch();
+                Object.keys(DEFAULT_GROUPS).forEach(key => {
+                    batch1.set(COL_GROUPS.doc(key), { ...DEFAULT_GROUPS[key], budgetLeft: appState.initialBudgetPerGroup });
+                });
+                await batch1.commit();
+
+                // 기존 트랜잭션 삭제
+                const txSnap = await COL_TX.get();
+                const chunk = 400;
+                for (let i = 0; i < txSnap.docs.length; i += chunk) {
+                    const b = db.batch();
+                    txSnap.docs.slice(i, i + chunk).forEach(d => b.delete(d.ref));
+                    await b.commit();
+                }
+
+                // 샘플 트랜잭션 + 잔액/모금액 보정
+                const samples = [
+                    { fromGroup:'1모둠', toGroup:'2모둠', amount:200000, comment:'옐로카펫 아이디어가 안전에 큰 도움이 될 것 같아요!' },
+                    { fromGroup:'2모둠', toGroup:'3모둠', amount:150000, comment:'어르신들이 편하게 쉬실 수 있으면 좋겠어요.' },
+                    { fromGroup:'3모둠', toGroup:'1모둠', amount:300000, comment:'깨끗한 동네 만들기에 동참합니다!' },
+                    { fromGroup:'4모둠', toGroup:'6모둠', amount:250000, comment:'공원에 예쁜 생태정원이 생기길 기대합니다.' }
+                ];
+                const budgetDelta = {}, raisedDelta = {};
+                const batch2 = db.batch();
+                samples.forEach(s => {
+                    budgetDelta[s.fromGroup] = (budgetDelta[s.fromGroup]||0) + s.amount;
+                    raisedDelta[s.toGroup] = (raisedDelta[s.toGroup]||0) + s.amount;
+                    batch2.set(COL_TX.doc(), {
+                        timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                        ...s,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+                await batch2.commit();
+
+                const batch3 = db.batch();
+                Object.keys(DEFAULT_GROUPS).forEach(key => {
+                    const b = appState.initialBudgetPerGroup - (budgetDelta[key]||0);
+                    const r = (raisedDelta[key]||0);
+                    batch3.update(COL_GROUPS.doc(key), { budgetLeft: b, raised: r });
+                });
+                await batch3.commit();
+
+                alert('🎉 샘플 데이터가 Firestore에 채워졌습니다!');
+            } catch (err) {
+                console.error(err);
+                alert('샘플 데이터 로드 실패: ' + err.message);
+            }
+        }
+
+        async function confirmResetData() {
+            if (!confirm('Firestore의 모든 펀딩 내역 및 작성 내용이 초기화됩니다. 정말 리셋하시겠습니까?')) return;
+            try {
+                // 트랜잭션 전부 삭제
+                const txSnap = await COL_TX.get();
+                const CHUNK = 400;
+                for (let i = 0; i < txSnap.docs.length; i += CHUNK) {
+                    const b = db.batch();
+                    txSnap.docs.slice(i, i + CHUNK).forEach(d => b.delete(d.ref));
+                    await b.commit();
+                }
+                // 모둠 기본값으로 복원
+                const batch = db.batch();
+                Object.keys(DEFAULT_GROUPS).forEach(key => {
+                    batch.set(COL_GROUPS.doc(key), { ...DEFAULT_GROUPS[key], budgetLeft: appState.initialBudgetPerGroup });
+                });
+                await batch.commit();
+                alert('초기화 완료!');
+            } catch (err) {
+                alert('초기화 실패: ' + err.message);
+            }
+        }
+
+        // ===== 시상식 =====
+        let currentWinnerRankIndex = 0;
+        let rankedGroupsList = [];
+        let audioCtx = null;
+
+        function playDrumRollSound() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                let count = 0;
+                const interval = setInterval(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = 80 + Math.random() * 40;
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+                    count++; if (count >= 15) clearInterval(interval);
+                }, 150);
+            } catch(e) {}
+        }
+        function playTaDaSound() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const notes = [261.63, 329.63, 392.00, 523.25];
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime + (idx * 0.08));
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (idx * 0.08) + 0.5);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(audioCtx.currentTime + (idx * 0.08));
+                    osc.stop(audioCtx.currentTime + (idx * 0.08) + 0.5);
+                });
+            } catch(e) {}
+        }
+
+        function openWinnerModal() {
+            const sorted = Object.keys(appState.groups)
+                .map(key => ({ key, ...appState.groups[key] }))
+                .sort((a, b) => (b.raised||0) - (a.raised||0));
+            const activeFunded = sorted.filter(g => (g.raised||0) > 0);
+            if (activeFunded.length === 0) {
+                alert('아직 펀딩을 받은 모둠이 없습니다! 펀딩 투자가 진행된 후 시상식을 열어주세요.');
+                return;
+            }
+            rankedGroupsList = sorted;
+            currentWinnerRankIndex = activeFunded.length >= 3 ? 0 : (activeFunded.length === 2 ? 1 : 2);
+            document.getElementById('modal-winner').classList.remove('hidden');
+            showInitialStageBeforePublish();
+        }
+        function showInitialStageBeforePublish() {
+            document.getElementById('suspense-container').classList.add('hidden');
+            document.getElementById('winner-content-box').classList.add('hidden');
+            const rankNames = ['3위 🥉', '2위 🥈', '1위 👑'];
+            const currentRankName = rankNames[currentWinnerRankIndex];
+            const btnNext = document.getElementById('btn-next-rank');
+            btnNext.classList.remove('hidden');
+            btnNext.innerHTML = `<span>대망의 [${currentRankName}] 발표하기 🥁</span> <i class="fa-solid fa-drum"></i>`;
+            document.getElementById('btn-close-winner').classList.add('hidden');
+        }
+        function triggerSuspenseAndNext() {
+            const suspenseBox = document.getElementById('suspense-container');
+            const winnerBox = document.getElementById('winner-content-box');
+            const btnGroup = document.getElementById('ceremony-btn-group');
+            const countdownEl = document.getElementById('countdown-timer');
+            btnGroup.classList.add('hidden');
+            winnerBox.classList.add('hidden');
+            suspenseBox.classList.remove('hidden');
+            playDrumRollSound();
+            let count = 3;
+            countdownEl.innerText = count;
+            const timer = setInterval(() => {
+                count--;
+                if (count > 0) countdownEl.innerText = count;
+                else {
+                    clearInterval(timer);
+                    suspenseBox.classList.add('hidden');
+                    winnerBox.classList.remove('hidden');
+                    btnGroup.classList.remove('hidden');
+                    renderRankStep();
+                    playTaDaSound();
+                }
+            }, 800);
+        }
+        function renderRankStep() {
+            const rankConfigs = [
+                { rankName:'3위', emoji:'🥉', badgeBg:'bg-amber-700 text-amber-100', nextBtnText:'다음 2위 발표 준비 🥈' },
+                { rankName:'2위', emoji:'🥈', badgeBg:'bg-slate-400 text-slate-900', nextBtnText:'대망의 1위 발표 준비 👑' },
+                { rankName:'1위 (최고의 해결방안)', emoji:'👑 1위 🥇', badgeBg:'bg-amber-400 text-amber-950 font-black text-lg', nextBtnText:'' }
+            ];
+            const currentConfig = rankConfigs[currentWinnerRankIndex];
+            const groupData = rankedGroupsList[2 - currentWinnerRankIndex] || rankedGroupsList[0];
+            document.getElementById('ceremony-rank-title').innerText = `${currentConfig.emoji} ${currentConfig.rankName}!`;
+            const badge = document.getElementById('winner-badge');
+            badge.className = `inline-block font-black px-4 py-1 rounded-full shadow-sm ${currentConfig.badgeBg}`;
+            badge.innerText = `${groupData.groupName || groupData.key}`;
+            document.getElementById('winner-title').innerText = groupData.title || '지역 문제 해결 방안';
+            document.getElementById('winner-amount').innerText = `${(groupData.raised||0).toLocaleString()}원 달성!`;
+            document.getElementById('winner-effect').innerText = groupData.effect ? `"${groupData.effect}"` : '';
+            const btnNext = document.getElementById('btn-next-rank');
+            const btnClose = document.getElementById('btn-close-winner');
+            if (currentWinnerRankIndex < 2) {
+                currentWinnerRankIndex++;
+                btnNext.classList.remove('hidden');
+                btnNext.innerHTML = `<span>${currentConfig.nextBtnText}</span> <i class="fa-solid fa-arrow-right"></i>`;
+                btnClose.classList.add('hidden');
+            } else {
+                btnNext.classList.add('hidden');
+                btnClose.classList.remove('hidden');
+            }
+            triggerConfettiForRank(currentWinnerRankIndex - 1);
+        }
+        function triggerConfettiForRank(rankIndex) {
+            const countMultiplier = (rankIndex + 1);
+            confetti({ particleCount: 50 * countMultiplier, spread: 70 + (rankIndex * 20), origin: { y: 0.6 } });
+            if (rankIndex === 2) {
+                var duration = 3.5 * 1000;
+                var end = Date.now() + duration;
+                (function frame() {
+                    confetti({ particleCount: 7, angle: 60, spread: 55, origin: { x: 0 } });
+                    confetti({ particleCount: 7, angle: 120, spread: 55, origin: { x: 1 } });
+                    if (Date.now() < end) requestAnimationFrame(frame);
+                }());
+            }
+        }
+        function closeWinnerModal() {
+            document.getElementById('modal-winner').classList.add('hidden');
+        }
     </script>
 </body>
 </html>
